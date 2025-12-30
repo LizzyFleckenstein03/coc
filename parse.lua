@@ -22,7 +22,7 @@ end
 
 local function stream_get_skip_comment(st, pat)
     -- remove comments
-    while stream_get_skip_ws(st, "(#[^\n]*)") do end 
+    while stream_get_skip_ws(st, "(#[^\n]*)") do end
     return stream_get_skip_ws(st, pat)
 end
 
@@ -126,7 +126,7 @@ local function parse_param_list(st)
     local params = {}
 
     while true do
-        local g, err = parse_param_group(st) if err then return nil, err end 
+        local g, err = parse_param_group(st) if err then return nil, err end
         if not g then
             break
         end
@@ -148,7 +148,7 @@ local function parse_noapp_expr(st)
     if not name then
         return
     end
-    
+
     if not keyword then
         return { kind = "var", name = name }
     elseif name == "type" then
@@ -184,7 +184,7 @@ parse_expr = function(st)
                 body = right
             }
         end
-    
+
         local right, err = parse_noapp_expr(st) if err then return nil, err end
         if not right then
             break
@@ -206,7 +206,7 @@ local function parse_stmt(st)
 
         has_body = true
         if kind == "def" then
-            name, err = expect(st, "identifier", parse_ident(st)) if err then return nil, err end 
+            name, err = expect(st, "identifier", parse_ident(st)) if err then return nil, err end
             if not stream_get(st, ":=") then
                 has_body = false
             end
@@ -231,7 +231,7 @@ local function parse_stmt(st)
     end
 
     local _, err = expect_tok(st, ";") if err then return nil, err end
-    return ret    
+    return ret
 end
 
 return {

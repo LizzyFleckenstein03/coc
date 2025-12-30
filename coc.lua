@@ -40,7 +40,7 @@ local function error_str(err)
             :format(expr.str(err.type), expr.str(err.expr.val), expr.str(err.expr.type))
     elseif err.err == "syntax_error" then
         return ("syntax error in %s: %s")
-            :format(err.pos, err.msg)        
+            :format(err.pos, err.msg)
     end
 end
 

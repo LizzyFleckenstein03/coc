@@ -58,7 +58,7 @@ local function bind(x, env)
             ref = i,
         })
     end
-    return x    
+    return x
 end
 
 -- assumed to be in same context
@@ -97,7 +97,7 @@ local function expr_str(x)
             table.insert(right, 1, expr_str(left.right))
             left = left.left
         end
-        
+
         return ("(%s %s)"):format(expr_str(left), table.concat(right, " "))
     elseif x.kind == "fun" or x.kind == "forall" then
         local left = {}
@@ -125,13 +125,13 @@ local function expr_str(x)
                 commit_names()
             end
             type = right.param.type
-    
+
             table.insert(names, anon and expr_str(right.param.type) or right.param.name)
 
             if not anon and free(right.param.type, right.param.name) then
                 commit_names()
             end
-    
+
             right = right.body
         end
         commit_names()

@@ -58,7 +58,7 @@ def pred := fun (n : nat) =>
         n (option nat) (none nat) (fun x : option nat =>
             x (option nat) (some nat zero) (fun n : nat => some nat (succ n)))
     : nat -> option nat;
-	
+
 def even := fun n : nat => n bool true not
 	: nat -> bool;
 

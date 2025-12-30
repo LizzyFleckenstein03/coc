@@ -46,13 +46,13 @@ local function reduce(wrap, x, env, typeck)
         local right, err = wrap(reduce, "right")(x.right, env, typeck) if err then return nil, err end
 
         local left_type, err = wrap(reduce, "left type")(left.type, env, false) if err then return nil, err end
-        local right_type, err = wrap(reduce, "right type")(right.type, env, false) if err then return nil, err end  
-        
+        local right_type, err = wrap(reduce, "right type")(right.type, env, false) if err then return nil, err end
+
         if left_type.val.kind ~= "forall" then
             return nil, { err = "not_function", expr = { val = left.val, type = left_type.val } }
         end
 
-        local param_type, err = wrap(reduce, "param type")(left_type.val.param.type, env, false) if err then return nil, err end        
+        local param_type, err = wrap(reduce, "param type")(left_type.val.param.type, env, false) if err then return nil, err end
 
         local _, err = type_match(param_type.val, { val = right.val, type = right_type.val }) if err then return nil, err end
 
