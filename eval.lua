@@ -71,6 +71,12 @@ local function reduce(wrap, x, env, typeck)
         local body = expr.subst(x.body, x.param.name, { kind = "var", name = param.name, type = param.type })
         local body, err = wrap(reduce, "body")(body, env, typeck) if err then return nil, err end
 
+        if x.kind == "forall" then
+            local body_type, err = wrap(reduce, "body type")(body.type, env, false) if err then return nil, err end
+            local _, err = type_match({ kind = "type" }, { type = body_type.val, val = body.val }) if err then return nil, err end
+            body.type = body_type.val
+        end
+
         return {
             type = x.kind == "fun" and { kind = "forall", param = param, body = body.type } or { kind = "type" },
             val = { kind = x.kind, param = param, body = body.val }

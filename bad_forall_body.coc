@@ -1,0 +1,3 @@
+def x := fun x : type => x;
+
+check forall y : type, x;
