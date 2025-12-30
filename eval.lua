@@ -6,26 +6,25 @@ local function type_match(type, x)
     end
 end
 
-local function run(f)
-    local function wrap(parent_x)
-        return function(f, context)
-            return function(x, env, typeck)
-                local val, err = f(wrap(x), x, env, typeck)
-                if err and parent_x then
-                    return nil, { err = "in", inner = err, where = { expr = parent_x, context = context, typeck = typeck } }
-                end
-                return val, err
-            end
-        end
+local function expect(where, val, err)
+    if err then
+        return nil, { err = "where", where = where, inner = err }
     end
+    return val
+end
 
+local function wrap_result(reduce)
     return function(x, env, typeck)
-        return wrap(x)(f)(x, env, typeck)
+        local val, err = reduce(x, env, typeck)
+        if err then
+            return nil, { err = "what", action = typeck and "typeck" or "reduce", expr = x, inner = err }
+        end
+        return val
     end
 end
 
--- TODO: re-design error handling: just use wrap, it adds an error
-local function reduce(wrap, x, env, typeck)
+local reduce
+reduce = wrap_result(function(x, env, typeck)
     if x.kind == "type" then
         return { type = x, val = x }
     elseif x.kind == "var" then
@@ -36,25 +35,25 @@ local function reduce(wrap, x, env, typeck)
         if not typeck and x.ref then
             val = env[x.ref].val
             if val then
-                local redval, err = wrap(reduce, "def")(val, env, typeck) if err then return nil, err end
+                local redval, err = expect("definition", reduce(val, env, typeck)) if err then return nil, err end
                 val = redval.val
             end
         end
         return { type = x.type, val = val or x }
     elseif x.kind == "app" then
-        local left, err = wrap(reduce, "left")(x.left, env, typeck) if err then return nil, err end
-        local right, err = wrap(reduce, "right")(x.right, env, typeck) if err then return nil, err end
+        local left, err = expect("left", reduce(x.left, env, typeck)) if err then return nil, err end
+        local right, err = expect("right", reduce(x.right, env, typeck)) if err then return nil, err end
 
-        local left_type, err = wrap(reduce, "left type")(left.type, env, false) if err then return nil, err end
-        local right_type, err = wrap(reduce, "right type")(right.type, env, false) if err then return nil, err end
+        local left_type, err = expect("left type", reduce(left.type, env, false)) if err then return nil, err end
+        local right_type, err = expect("right type", reduce(right.type, env, false)) if err then return nil, err end
 
         if left_type.val.kind ~= "forall" then
-            return nil, { err = "not_function", expr = { val = left.val, type = left_type.val } }
+            return expect("left type", nil, { err = "not_function", expr = { val = left.val, type = left_type.val } })
         end
 
-        local param_type, err = wrap(reduce, "param type")(left_type.val.param.type, env, false) if err then return nil, err end
+        local param_type, err = expect("param type", reduce(left_type.val.param.type, env, false)) if err then return nil, err end
 
-        local _, err = type_match(param_type.val, { val = right.val, type = right_type.val }) if err then return nil, err end
+        local _, err = expect("right type", type_match(param_type.val, { val = right.val, type = right_type.val })) if err then return nil, err end
 
         if typeck or left.val.kind ~= "fun" then
             local out_type = expr.subst(left_type.val.body, left_type.val.param.name, right.val)
@@ -62,18 +61,18 @@ local function reduce(wrap, x, env, typeck)
         end
 
         local joint = expr.subst(left.val.body, left.val.param.name, right.val)
-        return wrap(reduce, "joint")(joint, env, false)
+        return expect("application", reduce(joint, env, false))
     elseif x.kind == "fun" or x.kind == "forall" then
-        local param_type, err = wrap(reduce, "param type")(x.param.type, env, kind == "fun" or typeck) if err then return nil, err end
-        local _, err = type_match({ kind = "type" }, param_type) if err then return nil, err end
+        local param_type, err = expect("param type", reduce(x.param.type, env, kind == "fun" or typeck)) if err then return nil, err end
+        local _, err = expect("param type", type_match({ kind = "type" }, param_type)) if err then return nil, err end
         local param = { name = x.param.name, type = param_type.val }
 
         local body = expr.subst(x.body, x.param.name, { kind = "var", name = param.name, type = param.type })
-        local body, err = wrap(reduce, "body")(body, env, typeck) if err then return nil, err end
+        local body, err = expect("body", reduce(body, env, typeck)) if err then return nil, err end
 
         if x.kind == "forall" then
-            local body_type, err = wrap(reduce, "body type")(body.type, env, false) if err then return nil, err end
-            local _, err = type_match({ kind = "type" }, { type = body_type.val, val = body.val }) if err then return nil, err end
+            local body_type, err = expect("body type", reduce(body.type, env, false)) if err then return nil, err end
+            local _, err = expect("body type", type_match({ kind = "type" }, { type = body_type.val, val = body.val })) if err then return nil, err end
             body.type = body_type.val
         end
 
@@ -82,19 +81,19 @@ local function reduce(wrap, x, env, typeck)
             val = { kind = x.kind, param = param, body = body.val }
         }
     end
-end
+end)
 
-local function eval_reduce(x, env, typeck)
-    return run(reduce)(expr.bind(x, env), env, typeck)
+local function do_reduce(x, env, typeck)
+    return reduce(expr.bind(x, env), env, typeck)
 end
 
 local function typeck(x, env)
-    local obj, err = eval(x, env, true) if err then return nil, err end
+    local obj, err = do_reduce(x, env, true) if err then return nil, err end
     return obj.type
 end
 
 return {
-    reduce = eval_reduce,
+    reduce = do_reduce,
     typeck = typeck,
     type_match = type_match,
 }

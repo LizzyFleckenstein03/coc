@@ -21,14 +21,17 @@ local parse = require("parse")
 local eval = require("eval")
 
 local function error_str(err)
-    if err.err == "in" then
-        return ("error during %s in %s:\n%s"):format(
-            table.concat({
-                err.where.typeck and "typeck" or "reduce",
-                err.where.context
-            }, " "),
-            expr.str(err.where.expr),
-            error_str(err.inner))
+    if err.err == "what" then
+        local inner, where = err.inner, ""
+        if err.inner.err == "where" then
+            where = " in " .. inner.where
+            inner = inner.inner
+        end
+        return ("error%s during %s %s:\n%s")
+            :format(where, err.action, expr.str(err.expr), error_str(inner))
+    elseif err.err == "where" then
+        return ("error in %s:\n%s")
+            :format(err.where, error_str(err.inner))
     elseif err.err == "var_not_found" then
         return ("variable not found: %s")
             :format(err.var)
