@@ -6,9 +6,12 @@ See example.coc for examples.
 
 See hurkens.coc for an implementation of Hurken's paradox, which is currently possible due to lack of type universes.
 
+The `bugs/` directory contains test files for various bugs that have been found and fixed.
+
 Usage: `lua coc.lua <file>`
 
 Works in luajit.
+
 
 Some helpful papers used:
 - https://pauillac.inria.fr/~herbelin/publis/univalgcci.pdf
