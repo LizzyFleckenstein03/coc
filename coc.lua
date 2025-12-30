@@ -82,7 +82,7 @@ local function run_command(com, env)
         elseif com.kind == "def" then
             print(("%s : %s"):format(com.name, expr.str(type)))
         elseif com.kind == "check" then
-            print(("%s : %s"):format(expr.str(com.expr), expr_tostr(type)))
+            print(("%s : %s"):format(expr.str(com.expr), expr.str(type)))
         end
 
         if com.kind == "def" then
