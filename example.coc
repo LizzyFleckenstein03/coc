@@ -1,0 +1,113 @@
+# bool
+include hurkens.coc;
+
+def bool := forall T : type, T -> T -> T
+	: type;
+
+def true := fun (T : type) (t f : T) => t
+	: bool;
+
+def false := fun (T : type) (t f : T) => f
+	: bool;
+
+# bool funcs
+
+def not := fun b : bool => b bool false true
+	: bool -> bool;
+
+def and := fun a b : bool => a bool b false
+	: bool -> bool -> bool;
+
+def or := fun a b : bool => a bool true b
+	: bool -> bool -> bool;
+
+def bool_eq := fun a b : bool => a bool b (not b)
+    : bool -> bool -> bool;
+
+# option
+
+def option := fun T : type => forall R : type, R -> (T -> R) -> R
+    : type -> type;
+
+def some := fun (T : type) (t : T) (R : type) (n : R) (s : T -> R) => s t
+    : forall (T : type), T -> option T;
+
+def none := fun (T : type) (R : type) (n : R) (s : T -> R) => n
+    : forall (T : type), option T;
+
+def flat_map := fun (A B : type) (f : A -> option B) (a : option A) =>
+        a (option B) (none B) (fun a : A => f a)
+    : forall (A B : type), (A -> option B) -> (option A -> option B);
+
+def map := fun (A B : type) (f : A -> B) (a : option A) =>
+        a (option B) (none B) (fun a : A => some B (f a))
+    : forall (A B : type), (A -> B) -> (option A -> option B);
+
+# nat
+
+def nat := forall T : type, T -> (T -> T) -> T
+	: type;
+
+def zero := fun (T : type) (z : T) (s : T -> T) => z
+	: nat;
+
+def succ := fun (n : nat) (T : type) (z : T) (s : T -> T) => s (n T z s)
+	: nat -> nat;
+
+# nat funcs
+
+def pred := fun (n : nat) =>
+        n (option nat) (none nat) (fun x : option nat =>
+            x (option nat) (some nat zero) (fun n : nat => some nat (succ n)))
+    : nat -> option nat;
+	
+def even := fun n : nat => n bool true not
+	: nat -> bool;
+
+def add := fun a b : nat => a nat b succ
+	: nat -> nat -> nat;
+
+def mul := fun a b : nat => a nat zero (add b)
+	: nat -> nat -> nat;
+
+def is_zero := fun n : nat => n bool true (fun _ : bool => false)
+    : nat -> bool;
+
+def nat_eq := fun a b : nat => a (option nat) (some nat b) (flat_map nat nat pred) bool false is_zero
+    : nat -> nat -> bool;
+
+# a few nats
+
+def 0 := zero;
+def 1 := succ 0;
+def 2 := succ 1;
+def 3 := succ 2;
+def 4 := succ 3;
+def 5 := succ 4;
+def 6 := succ 5;
+def 7 := succ 6;
+def 8 := succ 7;
+def 9 := succ 8;
+
+# display
+
+def d_bool : type;
+def d_true : d_bool;
+def d_false : d_bool;
+def display_bool := fun (b : bool) => b d_bool d_true d_false;
+
+def d_nat : type;
+def d_zero : d_nat;
+def d_succ : d_nat -> d_nat;
+def display_nat := fun (n : nat) => n d_nat d_zero d_succ;
+
+# display decimal display_nat d_zero d_succ;
+
+# tests
+
+eval display_bool (nat_eq 0 1);
+eval display_bool (nat_eq 1 0);
+eval display_bool (nat_eq 0 0);
+eval display_bool (nat_eq 5 5);
+eval display_bool (nat_eq 5 6);
+eval display_nat (mul 2 3);

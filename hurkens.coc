@@ -1,0 +1,87 @@
+# Hurken's paradox is possible due to lack of type universes
+# Based on: https://raw.githubusercontent.com/Garbaz/seminar-dependent-types/master/elaboration/elaboration.latex.pdf
+
+# Basic Definitions
+
+def False := forall T : type, T
+	: type;
+
+def Not := fun P : type => P -> False
+	: type -> type;
+
+def Pow := fun A : type => A -> type
+	: type -> type;
+
+# A Powerful Universe
+
+def U := forall A : type,
+        (Pow (Pow A) -> A) -> Pow (Pow A)
+	: type;
+
+def tao := fun
+        (ppU : Pow (Pow U))
+        (A : type)
+        (ppA_A : Pow (Pow A) -> A)
+        (pA : Pow A) =>
+            ppU (fun u : U =>
+                pA (ppA_A (u A ppA_A)))
+	: Pow (Pow U) -> U;
+
+def sigma := fun u : U => u U tao
+	: U -> Pow (Pow U);
+
+# Inductive Subsets and Well Founded Elements
+
+def inductive := fun pU : (Pow U) =>
+        forall u : U, sigma u pU -> pU u
+	: Pow (Pow U);
+
+def well_founded := fun u : U =>
+        forall pU : Pow U, inductive pU -> pU u
+	: Pow U;
+
+# A Paradoxical Element
+
+def Omega := tao inductive
+	: U;
+
+# The Paradoxical Element is well founded
+
+def well_founded_Omega := fun
+        (pU : Pow U)
+        (ind_pU : inductive pU) =>
+            ind_pU Omega (fun u : U => ind_pU (tao (sigma u)))
+	: well_founded Omega;
+
+# But also not well founded
+
+def pred := fun v u : U =>
+        forall pU : Pow U,
+            sigma u pU -> pU v
+	: U -> U -> type;
+
+def Delta := fun u : U =>
+        Not (pred (tao (sigma u)) u)
+	: Pow U;
+
+def inductive_Delta := fun
+        (u : U)
+        (sigma_u_Delta : sigma u Delta)
+        (tao_sigma_u_pred_u : pred (tao (sigma u)) u) =>
+            tao_sigma_u_pred_u Delta sigma_u_Delta (fun pU : (Pow U) =>
+                tao_sigma_u_pred_u (fun w : U => pU (tao (sigma w))))
+	: inductive Delta;
+
+def not_well_founded_Omega :=
+        fun wf_Omega : well_founded Omega =>
+            wf_Omega Delta inductive_Delta (fun pU : (Pow U) =>
+                wf_Omega (fun w : U =>  pU (tao (sigma w))))
+	: Not (well_founded Omega);
+
+# A term of the empty type
+
+def false := not_well_founded_Omega well_founded_Omega
+	: False;
+
+# this hangs!
+# eval false;
