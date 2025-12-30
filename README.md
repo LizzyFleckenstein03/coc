@@ -9,3 +9,8 @@ See hurkens.coc for an implementation of Hurken's paradox, which is currently po
 Usage: `lua coc.lua <file>`
 
 Works in luajit.
+
+Some helpful papers used:
+https://pauillac.inria.fr/~herbelin/publis/univalgcci.pdf
+https://people.csail.mit.edu/jgross/personal-website/papers/academic-papers-local/1-s2.0-030439759090108T-main.pdf
+https://raw.githubusercontent.com/Garbaz/seminar-dependent-types/master/elaboration/elaboration.latex.pdf
