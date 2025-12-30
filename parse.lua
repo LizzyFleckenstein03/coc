@@ -224,7 +224,7 @@ local function parse_stmt(st)
 
         ret = { kind = kind, name = name, expr = expr, type = type }
     elseif kind == "include" then
-        local path, err = expect(st, "path", stream_get("[%w._-]+")) if err then return nil, err end 
+        local path, err = expect(st, "path", stream_get(st, "[%w._-]+")) if err then return nil, err end
         ret = { kind = kind, path = path }
     else
         return nil, stream_err(st, "expected command, got "..kind)

@@ -1,6 +1,4 @@
 # bool
-include hurkens.coc;
-
 def bool := forall T : type, T -> T -> T
 	: type;
 
