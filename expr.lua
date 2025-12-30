@@ -1,30 +1,31 @@
-local function free(x, name)
+local function free(x, name, env)
     if x.kind == "var" then
-        return name == x.name or (x.type and free(x.type, name))
+        return name == x.name or (x.type and free(x.type, name, env))
+            or (x.ref and env and env[x.ref].val and free(env[x.ref].val, name, env))
     elseif x.kind == "app" then
-        return free(x.left, name) or free(x.right, name)
+        return free(x.left, name, env) or free(x.right, name, env)
     elseif x.kind == "fun" or x.kind == "forall" then
-        return free(x.param.type, name) or (name ~= x.param.name and free(x.body, name))
+        return free(x.param.type, name, env) or (name ~= x.param.name and free(x.body, name, env))
     elseif x.kind == "type" then
         return false
     end
 end
 
-local function subst(x, name, with)
+local function subst(x, name, with, env)
     if x.kind == "var" then
         return x.name == name and with or
-            { kind = "var", name = x.name, type = x.type and subst(x.type, name, with), ref = x.ref }
+            { kind = "var", name = x.name, type = x.type and subst(x.type, name, with, env), ref = x.ref }
     elseif x.kind == "app" then
-        return { kind = "app", left = subst(x.left, name, with), right = subst(x.right, name, with) }
+        return { kind = "app", left = subst(x.left, name, with, env), right = subst(x.right, name, with, env) }
     elseif x.kind == "fun" or x.kind == "forall" then
-        local param = { name = x.param.name, type = subst(x.param.type, name, with) }
+        local param = { name = x.param.name, type = subst(x.param.type, name, with, env) }
         local body = x.body
 
         if param.name == name then
             return { kind = x.kind, param = param, body = body }
         end
 
-        if free(with, param.name) then
+        if free(with, param.name, env) then
             local stem, postfix = param.name:match("^(.+)_(%d+)$")
             if stem then
                 postfix = tonumber(postfix)
@@ -36,14 +37,14 @@ local function subst(x, name, with)
             local new_param_name
             repeat new_param_name = ("%s_%d"):format(stem, postfix)
                 postfix = postfix + 1
-            until not (new_param_name == name or free(with, new_param_name) or free(body, new_param_name))
+            until not (new_param_name == name or free(with, new_param_name, env) or free(body, new_param_name, env))
 
             -- TODO: loss of type?
-            body = subst(body, param.name, { kind = "var", name = new_param_name })
+            body = subst(body, param.name, { kind = "var", name = new_param_name }, env)
             param.name = new_param_name
         end
 
-        return { kind = x.kind, param = param, body = subst(body, name, with) }
+        return { kind = x.kind, param = param, body = subst(body, name, with, env) }
     elseif x.kind == "type" then
         return x
     end
@@ -56,7 +57,7 @@ local function bind(x, env)
             name = def.name,
             type = def.type,
             ref = i,
-        })
+        }, env)
     end
     return x
 end
@@ -69,7 +70,7 @@ local function expr_eq(a, b, alpha)
     if a.kind == "type" then
         return true
     elseif a.kind == "var" then
-        return alpha(true, a.name) == alpha(false, b.name)
+        return alpha(true, a.name) == alpha(false, b.name) and a.ref == b.ref
     elseif a.kind == "app" then
         return expr_eq(a.left, b.left, alpha) and expr_eq(a.right, b.right, alpha)
     elseif a.kind == "fun" or a.kind == "forall" then

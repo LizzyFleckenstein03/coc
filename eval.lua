@@ -56,18 +56,18 @@ reduce = wrap_result(function(x, env, typeck)
         local _, err = expect("right type", type_match(param_type.val, { val = right.val, type = right_type.val })) if err then return nil, err end
 
         if typeck or left.val.kind ~= "fun" then
-            local out_type = expr.subst(left_type.val.body, left_type.val.param.name, right.val)
+            local out_type = expr.subst(left_type.val.body, left_type.val.param.name, right.val, env)
             return { type = out_type, val = { kind = "app", left = left.val, right = right.val } }
         end
 
-        local joint = expr.subst(left.val.body, left.val.param.name, right.val)
+        local joint = expr.subst(left.val.body, left.val.param.name, right.val, env)
         return expect("application", reduce(joint, env, false))
     elseif x.kind == "fun" or x.kind == "forall" then
         local param_type, err = expect("param type", reduce(x.param.type, env, kind == "fun" or typeck)) if err then return nil, err end
         local _, err = expect("param type", type_match({ kind = "type" }, param_type)) if err then return nil, err end
         local param = { name = x.param.name, type = param_type.val }
 
-        local body = expr.subst(x.body, x.param.name, { kind = "var", name = param.name, type = param.type })
+        local body = expr.subst(x.body, x.param.name, { kind = "var", name = param.name, type = param.type }, env)
         local body, err = expect("body", reduce(body, env, typeck)) if err then return nil, err end
 
         if x.kind == "forall" then
