@@ -8,15 +8,15 @@ local function stream_new(name, obj)
         str = obj:read("*a")
     end
 
-    return { name = name, inner = str }
+    return { name = name, pos = 1, inner = str }
 end
 
 local function stream_get_skip_ws(st, pat)
-    local _, adv, match = st.inner:find("^%s*"..pat.."")
-    if not adv then
+    local _, pos, match = st.inner:find("^%s*"..pat, st.pos)
+    if not pos then
         return
     end
-    st.inner = st.inner:sub(adv + 1)
+    st.pos = pos+1
     return match or true
 end
 
@@ -35,8 +35,12 @@ local function stream_get(st, pat)
 end
 
 local function stream_pos(st)
-    -- TODO: track lineno and charpos
-    return st.name
+    -- TODO: perhaps track charpos
+    local lineno = 1
+    for _ in st.inner:sub(1, st.pos-1):gmatch("\n") do
+        lineno = lineno + 1
+    end
+    return st.name..":"..lineno
 end
 
 local function stream_err(st, msg)
