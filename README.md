@@ -8,11 +8,11 @@ LuaJIT is supported.
 
 TODO: Inductive types, Type universes.
 
-See example.coc for examples.
+See [example.coc](example.coc) for examples.
 
-See hurkens.coc for an implementation of Hurken's paradox, which is currently possible due to lack of type universes.
+See [hurkens.coc](hurkens.coc) for an implementation of Hurken's paradox, which is currently possible due to lack of type universes.
 
-The [bugs]() directory contains test files for various bugs that have been found and fixed.
+The [bugs](bugs) directory contains test files for various bugs that have been found and fixed.
 
 Some helpful papers used:
 - https://pauillac.inria.fr/~herbelin/publis/univalgcci.pdf
