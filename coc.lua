@@ -99,9 +99,46 @@ local function run_command(com, env)
         return true
     elseif com.kind == "include" then
         return run_file(com.path, env)
+    elseif com.kind == "exit" then
+        return true, true
     else
         error()
     end
+end
+
+local function parse_and_run_command(stream, env)
+    local com, err = parse.stmt(stream)
+    if err then
+        return report_error(err, stream)
+    end
+    if not com then
+        if not parse.done(stream) then
+            return report_error(parse.err(stream, "expected command"))
+        end
+        return true, true
+    end
+    return run_command(com, env)
+end
+
+local function run_stream(stream, env, keep_going, pre)
+    while true do
+        if pre then
+            pre(stream, env)
+        end
+        local success, done = parse_and_run_command(stream, env)
+        if done then
+            break
+        end
+        if not success then
+            if keep_going then
+                parse.skip(stream)
+            else
+                return false
+            end
+        end
+    end
+
+    return true
 end
 
 run_file = function(path, env)
@@ -111,30 +148,19 @@ run_file = function(path, env)
         return false
     end
 
-    local stream = parse.stream(path, f)
-
-    while true do
-        local com, err = parse.stmt(stream) if err then return report_error(err, stream) end
-        if not com then
-            break
-        end
-        if not run_command(com, env) then
-            return false
-        end
-    end
-
-    if not parse.done(stream) then
-        return report_error(parse.err(stream, "expected command"))
-    end
-
-    return true
+    return run_stream(parse.stream(path, f), env)
 end
 
-if not arg[1] then
-    print(("usage: %s <file>"):format(arg[0]))
-    os.exit(1)
+local function main()
+    if arg[1] then
+        return run_file(arg[1], {})
+    else
+        return run_stream(parse.stream("stdin", io.stdin), {}, true, function()
+            io.write("> ")
+        end)
+    end
 end
 
-if not run_file(arg[1], {}) then
+if not main() then
     os.exit(1)
 end

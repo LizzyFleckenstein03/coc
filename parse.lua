@@ -1,46 +1,68 @@
 -- stream
 
-local function stream_new(name, obj)
-    local str
-    if type(obj) == "string" then
-        str = obj
-    else
-        str = obj:read("*a")
-    end
-
-    return { name = name, pos = 1, inner = str }
-end
-
-local function stream_get_skip_ws(st, pat)
-    local _, pos, match = st.inner:find("^%s*"..pat, st.pos)
+local function eat_match(x, pat)
+    local _, pos, match = x.buf:find("^"..pat, x.pos)
     if not pos then
         return
     end
-    st.pos = pos+1
+    x.pos = pos+1
     return match or true
 end
 
-local function stream_get_skip_comment(st, pat)
-    -- remove comments
-    while stream_get_skip_ws(st, "(#[^\n]*)") do end
-    return stream_get_skip_ws(st, pat)
+local function read_line(obj)
+    if obj.file then
+        return obj.file:read()
+    else
+        return obj.pos <= #obj.buf and eat_match(obj, "([^\n]*)\n?") or nil
+    end
 end
 
-local function stream_end(st)
-    return stream_get_skip_comment(st, "$") ~= nil
+local function stream_new(name, inner)
+    return {
+        name = name,
+        lineno = 0,
+        line = { pos = 1, buf = "" },
+        inner = type(inner) == "string" and { pos = 1, buf = inner } or { file = inner }
+    }
+end
+
+local function stream_line_exhausted(st)
+    return eat_match(st.line, "%s*$") ~= nil
+end
+
+local function stream_next_line(st)
+    local l = read_line(st.inner)
+    if not l then
+        return false
+    end
+    st.line = { pos = 1, buf = l }
+    st.lineno = st.lineno + 1
+    return true
+end
+
+local function stream_skip(st)
+    st.line = { pos = 1, buf = "" }
 end
 
 local function stream_get(st, pat)
-    return stream_get_skip_comment(st, "("..pat..")")
+    -- skip comments
+    while eat_match(st.line, "%s*#.*") do
+        stream_next_line(st)
+    end
+
+    local x = eat_match(st.line, "%s*("..pat..")")
+    if not x and stream_line_exhausted(st) and stream_next_line(st) then
+        return stream_get(st, pat)
+    end
+    return x
+end
+
+local function stream_end(st)
+    return stream_line_exhausted(st) and not stream_next_line(st)
 end
 
 local function stream_pos(st)
-    -- TODO: perhaps track charpos
-    local lineno = 1
-    for _ in st.inner:sub(1, st.pos-1):gmatch("\n") do
-        lineno = lineno + 1
-    end
-    return st.name..":"..lineno
+    return ("%s:%s:%s"):format(st.name, st.lineno, st.line.pos)
 end
 
 local function stream_err(st, msg)
@@ -230,6 +252,8 @@ local function parse_stmt(st)
     elseif kind == "include" then
         local path, err = expect(st, "path", stream_get(st, "[%w._-]+")) if err then return nil, err end
         ret = { kind = kind, path = path }
+    elseif kind == "exit" then
+        return { kind = "exit" }
     else
         return nil, stream_err(st, "expected command, got "..kind)
     end
@@ -244,4 +268,5 @@ return {
     err = stream_err,
     done = stream_end,
     stream = stream_new,
+    skip = stream_skip,
 }
