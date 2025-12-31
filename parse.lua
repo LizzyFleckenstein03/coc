@@ -103,7 +103,8 @@ local function parse_name(st)
         name == "def" or
         name == "eval" or
         name == "check" or
-        name == "include"
+        name == "include" or
+        name == "exit"
 end
 
 local function parse_ident(st)
