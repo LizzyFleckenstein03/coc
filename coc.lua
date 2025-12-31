@@ -155,9 +155,19 @@ local function main()
     if arg[1] then
         return run_file(arg[1], {})
     else
-        return run_stream(parse.stream("stdin", io.stdin), {}, true, function()
-            io.write("> ")
-        end)
+        local has_readline, readline = pcall(require, "readline")
+
+        if has_readline then
+            return run_stream(parse.stream("stdin", setmetatable({}, {__index = {
+                read = function()
+                    return readline.readline("> ")
+                end,
+            }})), {}, true)
+        else
+            return run_stream(parse.stream("stdin", io.stdin), {}, true, function()
+                io.write("> ")
+            end)
+        end
     end
 end
 

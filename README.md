@@ -1,6 +1,10 @@
 Toy implementation of the [calculus of constructions](https://en.wikipedia.org/wiki/Calculus_of_constructions).
 
-Usage: `lua coc.lua <file>` or `lua coc.lua` for a REPL. Also works with luajit.
+Usage: `lua coc.lua <file>` or `lua coc.lua` for a REPL.
+
+The REPL can optionally make use of the `readline` package if it is installed.
+
+LuaJIT is supported.
 
 TODO: Inductive types, Type universes.
 
