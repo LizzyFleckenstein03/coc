@@ -8,6 +8,8 @@ local function free(x, name, env)
         return free(x.param.type, name, env) or (name ~= x.param.name and free(x.body, name, env))
     elseif x.kind == "type" then
         return false
+    else
+        error(x.kind)
     end
 end
 
@@ -47,6 +49,8 @@ local function subst(x, name, with, env)
         return { kind = x.kind, param = param, body = subst(body, name, with, env) }
     elseif x.kind == "type" then
         return x
+    else
+        error(x.kind)
     end
 end
 
@@ -82,6 +86,8 @@ local function expr_eq(a, b, alpha)
                 local v = alpha(side, x)
                 return type(v) == "number" and (v+1) or v
             end)
+    else
+        error(a.kind)
     end
 end
 
@@ -149,6 +155,8 @@ local function expr_str(x)
             return ("(%s %s%s%s)"):format(x.kind, table.concat(left, " "),
                 x.kind == "fun" and " => " or ", ", expr_str(right))
         end
+    else
+        error(x.kind)
     end
 end
 

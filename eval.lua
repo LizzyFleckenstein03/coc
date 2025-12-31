@@ -80,6 +80,8 @@ reduce = wrap_result(function(x, env, typeck)
             type = x.kind == "fun" and { kind = "forall", param = param, body = body.type } or { kind = "type" },
             val = { kind = x.kind, param = param, body = body.val }
         }
+    else
+        error(x.kind)
     end
 end)
 

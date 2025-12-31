@@ -44,6 +44,8 @@ local function error_str(err)
     elseif err.err == "syntax_error" then
         return ("syntax error in %s: %s")
             :format(err.pos, err.msg)
+    else
+        error(err.err)
     end
 end
 
@@ -102,7 +104,7 @@ local function run_command(com, env)
     elseif com.kind == "exit" then
         return true, true
     else
-        error()
+        error(com.kind)
     end
 end
 
