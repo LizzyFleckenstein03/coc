@@ -158,18 +158,24 @@ local function main()
         return run_file(arg[1], {})
     else
         local has_readline, readline = pcall(require, "readline")
+        local read
 
         if has_readline then
-            return run_stream(parse.stream("stdin", setmetatable({}, {__index = {
-                read = function()
-                    return readline.readline("> ")
-                end,
-            }})), {}, true)
+            read = readline.readline
         else
-            return run_stream(parse.stream("stdin", io.stdin), {}, true, function()
-                io.write("> ")
-            end)
+            read = function(prompt)
+                io.write(prompt)
+                return io.read()
+            end
         end
+
+        local multiline = false
+        return run_stream(
+            parse.stream("stdin", function()
+                local prompt = multiline and ">> " or "> "
+                multiline = true
+                return read(prompt)
+            end), {}, true, function() multiline = false end)
     end
 end
 

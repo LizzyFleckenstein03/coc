@@ -12,6 +12,8 @@ end
 local function read_line(obj)
     if obj.file then
         return obj.file:read()
+    elseif obj.read then
+        return obj.read()
     else
         return obj.pos <= #obj.buf and eat_match(obj, "([^\n]*)\n?") or nil
     end
@@ -22,7 +24,10 @@ local function stream_new(name, inner)
         name = name,
         lineno = 0,
         line = { pos = 1, buf = "" },
-        inner = type(inner) == "string" and { pos = 1, buf = inner } or { file = inner }
+        inner =
+            type(inner) == "string" and { pos = 1, buf = inner } or
+            type(inner) == "function" and { read = inner } or
+            { file = inner }
     }
 end
 
