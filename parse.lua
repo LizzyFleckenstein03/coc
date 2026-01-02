@@ -1,4 +1,5 @@
 -- stream
+local expr = require("expr")
 
 local function eat_match(x, pat)
     local _, pos, match = x.buf:find("^"..pat, x.pos)
@@ -182,7 +183,7 @@ local function parse_noapp_expr(st)
     end
 
     if not keyword then
-        return { kind = "var", name = name }
+        return { kind = "free", name = name }
     elseif name == "type" then
         return { kind = "type" }
     elseif name == "fun" or name == "forall" then
@@ -191,15 +192,8 @@ local function parse_noapp_expr(st)
             return nil, stream_err(st, "expected parameter")
         end
         local _, err = expect_tok(st, name == "fun" and "=>" or ",") if err then return nil, err end
-        local expr, err = expect(st, "function body", parse_expr(st)) if err then return nil, err end
-        for i = #params, 1, -1 do
-            expr = {
-                kind = name,
-                param = params[i],
-                body = expr
-            }
-        end
-        return expr
+        local body, err = expect(st, "function body", parse_expr(st)) if err then return nil, err end
+        return expr.fun(name, params, body)
     else
         return nil, stream_err(st, "expected expression, got "..kind)
     end
