@@ -1,9 +1,9 @@
 -- stream
 local expr = require("expr")
 
-local function eat_match(x, pat)
+local function eat_match(x, pat, accept)
     local _, pos, match = x.buf:find("^"..pat, x.pos)
-    if not pos then
+    if not pos or (accept and not accept(match)) then
         return
     end
     x.pos = pos+1
@@ -25,6 +25,7 @@ local function stream_new(name, inner)
         name = name,
         lineno = 0,
         line = { pos = 1, buf = "" },
+        exhausted = false,
         inner =
             type(inner) == "string" and { pos = 1, buf = inner } or
             type(inner) == "function" and { read = inner } or
@@ -37,9 +38,13 @@ local function stream_line_exhausted(st)
 end
 
 local function stream_next_line(st)
+    if st.exhausted then
+        return
+    end
     local l = read_line(st.inner)
     if not l then
-        return false
+        st.exhausted = true
+        return
     end
     st.line = { pos = 1, buf = l }
     st.lineno = st.lineno + 1
@@ -50,15 +55,15 @@ local function stream_skip(st)
     st.line = { pos = 1, buf = "" }
 end
 
-local function stream_get(st, pat)
+local function stream_get(st, pat, accept)
     -- skip comments
     while eat_match(st.line, "%s*#.*") do
         stream_next_line(st)
     end
 
-    local x = eat_match(st.line, "%s*("..pat..")")
+    local x = eat_match(st.line, "%s*("..pat..")", accept)
     if not x and stream_line_exhausted(st) and stream_next_line(st) then
-        return stream_get(st, pat)
+        return stream_get(st, pat, accept)
     end
     return x
 end
@@ -93,35 +98,27 @@ end
 
 -- parse
 
-local function parse_name(st)
+local keyword = {
+    ["fun"] = true,
+    ["forall"] = true,
+    ["type"] = true,
+    ["def"] = true,
+    ["eval"] = true,
+    ["check"] = true,
+    ["include"] = true,
+    ["exit"] = true,
+}
+
+local function parse_name(st, accept)
     -- banned chars in names: , ( ) = - > : ; #
     -- makes sense to reserve too: <
     -- want to allow: _
     -- other, perhaps allow: + * ' & | ! ? " $ % . / @ \ ` ~ { } [ ]
-    local name = stream_get(st, "[%w_]+")
-    if not name then
-        return
-    end
-    return name,
-        name == "fun" or
-        name == "forall" or
-        name == "type" or
-        name == "def" or
-        name == "eval" or
-        name == "check" or
-        name == "include" or
-        name == "exit"
+    return stream_get(st, "[%w_]+", accept)
 end
 
 local function parse_ident(st)
-    local name, keyword = parse_name(st)
-    if not name then
-        return
-    end
-    if keyword then
-        return nil, stream_err(st, "expected identifier, got "..name)
-    end
-    return name
+    return parse_name(st, function(x) return not keyword[x] end)
 end
 
 local parse_expr
@@ -131,7 +128,7 @@ local function parse_param_group(st)
     local names = {}
 
     while true do
-        local name, err = parse_ident(st) if err then return nil, err end
+        local name = parse_ident(st)
         if not name then
             break
         end
@@ -177,12 +174,17 @@ local function parse_noapp_expr(st)
         local _, err = expect_tok(st, "%)", ")") if err then return nil, err end
         return expr
     end
-    local name, keyword = parse_name(st)
+    local name = parse_name(st, function(x)
+        return not keyword[x]
+            or x == "type"
+            or x == "fun"
+            or x == "forall"
+    end)
     if not name then
         return
     end
 
-    if not keyword then
+    if not keyword[name] then
         return { kind = "free", name = name }
     elseif name == "type" then
         return { kind = "type" }
@@ -194,8 +196,6 @@ local function parse_noapp_expr(st)
         local _, err = expect_tok(st, name == "fun" and "=>" or ",") if err then return nil, err end
         local body, err = expect(st, "function body", parse_expr(st)) if err then return nil, err end
         return expr.fun(name, params, body)
-    else
-        return nil, stream_err(st, "expected expression, got "..kind)
     end
 end
 
