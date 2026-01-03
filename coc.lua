@@ -186,9 +186,9 @@ local function main()
         local multiline = false
         return run_stream(state,
             parse.stream("stdin", function()
-                local prompt = multiline and ">> " or "> "
-                multiline = true
-                return read(prompt)
+                local line = read(multiline and ">> " or "> ")
+                multiline = multiline or (line and line:match("[^%s\n]"))
+                return line
             end), true, function() multiline = false end)
     end
 end
