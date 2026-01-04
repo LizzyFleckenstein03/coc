@@ -110,16 +110,17 @@ local keyword = {
     ["check"] = true,
     ["axioms"] = true,
     ["inductive"] = true,
+    ["filter"] = true,
     ["include"] = true,
     ["exit"] = true,
 }
 
 local function parse_name(st, accept)
-    -- banned chars in names: , ( ) = - > : ; #
+    -- banned chars in names: , ( ) = - > : ; # |
     -- makes sense to reserve too: <
     -- want to allow: _
-    -- other, perhaps allow: + * ' & | ! ? " $ % . / @ \ ` ~ { } [ ]
-    return stream_get(st, "[%w_]+", accept)
+    -- other, perhaps allow: + * ' & ! ? " $ % . / @ \ ` ~ { } [ ]
+    return stream_get(st, "[%a_][%w_]*", accept)
 end
 
 local function parse_ident(st)
@@ -179,6 +180,12 @@ local function parse_noapp_expr(st)
         local _, err = expect_tok(st, "%)", ")") if err then return nil, err end
         return expr
     end
+
+    local uint = stream_get(st, "[%d]+")
+    if uint then
+        return { kind = "custom", custom_kind = "uint", val = uint }
+    end
+
     local name = parse_name(st, function(x)
         return not keyword[x]
             or x == "type"
@@ -276,6 +283,20 @@ local function parse_stmt(st)
         local ctors, err = parse_param_list(st) if err then return nil, err end
 
         ret = { kind = "inductive", name = name, params = { outer = outer, inner = inner }, ctors = ctors }
+    elseif kind == "filter" then
+        local filter_kind, err = expect(st, "filter kind", parse_ident(st)) if err then return nil, err end
+        local filter_name, err = expect(st, "filter name", parse_ident(st)) if err then return nil, err end
+
+        local args = {}
+        while true do
+            local ar = parse_ident(st)
+            if not ar then
+                break
+            end
+            table.insert(args, ar)
+        end
+
+        ret = { kind = kind, filter_kind = filter_kind, filter_name = filter_name, args = args }
     elseif kind == "include" then
         local path, err = expect(st, "path", stream_get(st, "[%w._-]+")) if err then return nil, err end
         ret = { kind = kind, path = path }

@@ -1,6 +1,6 @@
 include base.coc;
 
-def 1_plus_1 := (eq_refl nat 2)
+def oneplusone := (eq_refl nat 2)
     : eq nat (add 1 1) 2;
 
 def add_assoc := fun (a b c : nat) =>

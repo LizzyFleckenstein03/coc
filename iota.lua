@@ -43,7 +43,7 @@ reduce = function(val, elim, cases, base, inner_args, env, depth)
         ctor = ctor.left
     end
 
-    local def = ctor.kind == "global" and env(ctor.name).ctor
+    local def = ctor.kind == "global" and env.global(ctor.name).ctor
     if not def then
         local result = expr.lift(base, depth)
         for _, inner in ipairs(inner_args) do
@@ -88,7 +88,7 @@ local function reduce_expr(x, env)
         x = x.left
     end
 
-    local elim = env(x.type).elim[x.elim_kind]
+    local elim = env.global(x.type).elim[x.elim_kind]
 
     local val = table.remove(args)
     local inner_args = {}

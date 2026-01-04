@@ -19,6 +19,14 @@ local function params_add(params, name, p_type)
     end
 end
 
+local function env_get(env, name)
+    local x = env.global(name)
+    if not x then
+        return nil, { err = "var_not_found", var = name }
+    end
+    return x
+end
+
 local function used(x, var)
     local global = type(var) == "string"
     if x.kind == "bound" then
@@ -75,11 +83,9 @@ local function bind(x, env, params)
         local index, type = params(x.name)
         if index then
             return { kind = "bound", index = index, type = lift(type, index+1) }
-        elseif env(x.name) then
-            return { kind = "global", name = x.name }
-        else
-            return nil, { err = "var_not_found", var = x.name }
         end
+        local _, err = env_get(env, x.name) if err then return nil, err end
+        return { kind = "global", name = x.name }
     elseif x.kind == "bound" then
         if not x.type then
             local _, type = params(x.index)
@@ -89,10 +95,7 @@ local function bind(x, env, params)
     elseif x.kind == "global" then
         return x
     elseif x.kind == "elim" then
-        local type = env(x.type)
-        if not type then
-            return nil, { err = "var_not_found", var = x.type }
-        end
+        local type, err = env_get(env, x.type) if err then return nil, err end
         if not type.elim then
             return nil, { err = "not_inductive", type = x.type }
         end
@@ -112,6 +115,9 @@ local function bind(x, env, params)
         }
     elseif x.kind == "type" then
         return x
+    elseif x.kind == "custom" then
+        local x, err = env.parse(x) if err then return nil, err end
+        return bind(x, env, params)
     else
         error(x.kind)
     end
@@ -141,7 +147,7 @@ local function choose_param_name(param, env, params)
         hint = suggest_name(param.type, params)
     end
 
-    if not (env(hint) or params(hint)) then
+    if not (env.global(hint) or params(hint)) then
         return hint, params_add(params, hint, param.type)
     end
 
@@ -150,7 +156,7 @@ local function choose_param_name(param, env, params)
     repeat
         name = ("%s_%d"):format(hint, postfix)
         postfix = postfix + 1
-    until not (env(name) or params(name))
+    until not (env.global(name) or params(name))
 
     return name, params_add(params, name, param.type)
 end
@@ -184,6 +190,12 @@ end
 
 local function expr_str(x, env, params, indexes)
     params = params or function() end
+
+    local disp = env.display(x, env, params, indexes)
+    if disp then
+        return disp
+    end
+
     if x.kind == "bound" then
         return indexes and "#"..x.index or assert(params(x.index))
     elseif x.kind == "global" then
@@ -267,7 +279,7 @@ local function axioms(x, t, env)
     if x.kind == "bound" or x.kind == "elim" or x.kind == "type" then
         -- no-op
     elseif x.kind == "global" then
-        local def = env(x.name)
+        local def = env.global(x.name)
         if def.val then
             axioms(def.val, t, env)
         elseif not def.elim and not def.ctor then
@@ -298,10 +310,10 @@ local function fun(kind, params, body)
 end
 
 local function env_add(env, name, def)
-    if env(name) then
+    if env.global(name) then
         return nil, { err = "already_exists", name = name }
     end
-    return function(x) return x == name and def or env(x) end
+    return { display = env.display, parse = env.parse, global = function(x) return x == name and def or env.global(x) end }
 end
 
 return {
@@ -314,4 +326,5 @@ return {
     axioms = axioms,
     fun = fun,
     env_add = env_add,
+    env_get = env_get,
 }

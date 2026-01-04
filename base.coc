@@ -49,10 +49,11 @@ def fst := fun (A B : type) => elim prod A B A (fun (a : A) (b : B) => a);
 def snd := fun (A B : type) => elim prod A B B (fun (a : A) (b : B) => b);
 
 inductive nat |
-    (0 : nat)
+    (Z : nat)
     (S : nat -> nat);
 
-def 1 := S 0; def 2 := S 1; def 3 := S 2; def 4 := S 3; def 5 := S 4; def 6 := S 5; def 7 := S 6; def 8 := S 7; def 9 := S 8;
+filter display uint Z S;
+filter parse uint Z S;
 
 def add := fun (a b : nat) => rec nat nat b (fun (n : nat) (r : nat) => S r) a;
 
@@ -67,7 +68,7 @@ inductive even > (n : nat) |
     (even_S : forall (n : nat), even n -> even (S (S n)));
 
 inductive odd > (n : nat) |
-    (odd_1 : odd (S 0))
+    (odd_1 : odd 1)
     (odd_S : forall (n : nat), odd n -> odd (S (S n)));
 
 inductive fin (n : nat) |

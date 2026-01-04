@@ -19,7 +19,7 @@ local function reduce_throw(x, env, typeck)
     if x.kind == "bound" then
         return { type = x.type, val = x }
     elseif x.kind == "global" then
-        local def = env(x.name)
+        local def = env.global(x.name)
         local val
         if def.val and not typeck then
             local reduced_val, err = expect("definition", reduce(def.val, env, typeck)) if err then return nil, err end
@@ -27,7 +27,7 @@ local function reduce_throw(x, env, typeck)
         end
         return { type = def.type, val = val or x }
     elseif x.kind == "elim" then
-        local elim = env(x.type).elim[x.elim_kind]
+        local elim = env.global(x.type).elim[x.elim_kind]
         return { type = elim.type, elim_depth = elim.params, val = x }
     elseif x.kind == "app" then
         local left, err = expect("left", reduce(x.left, env, typeck)) if err then return nil, err end
