@@ -188,37 +188,36 @@ local function expr_eq(a, b, diff, depth)
     end
 end
 
-local function expr_str(x, env, params, indexes)
+local function expr_str(x, env, params, indices)
     params = params or function() end
 
-    local disp = env.display(x, env, params, indexes)
+    local disp = env.display(x, env, params, indices)
     if disp then
         return disp
     end
 
     if x.kind == "bound" then
-        return indexes and "#"..x.index or assert(params(x.index))
+        return indices and "#"..x.index or assert(params(x.index))
     elseif x.kind == "global" then
         return x.name
     elseif x.kind == "elim" then
         return ("(%s %s)"):format(x.elim_kind, x.type)
     elseif x.kind == "app" then
-        local right = {}
-        local left = x
+        local values = {}
 
-        while left.kind == "app" do
-            table.insert(right, 1, expr_str(left.right, env, params, indexes))
-            left = left.left
+        while x.kind == "app" do
+            table.insert(values, 1, expr_str(x.right, env, params, indices))
+            x = x.left
         end
 
-        local left_str
-        if left.kind == "elim" then
-            left_str = ("%s %s"):format(left.elim_kind, left.type)
+        if x.kind == "elim" then
+            table.insert(values, 1, x.type)
+            table.insert(values, 1, x.elim_kind)
         else
-            left_str = expr_str(left, env, params, indexes)
+            table.insert(values, 1, expr_str(x, env, params, indices))
         end
 
-        return ("(%s %s)"):format(left_str, table.concat(right, " "))
+        return ("(%s)"):format(table.concat(values, " "))
     elseif x.kind == "fun" or x.kind == "forall" then
         local left = {}
         local right = x
@@ -247,7 +246,7 @@ local function expr_str(x, env, params, indexes)
 
             local param_name
             type = right.param.type
-            type_str = expr_str(type, env, params, indexes)
+            type_str = expr_str(type, env, params, indices)
             param_name, params = choose_param_name(right.param, env, params)
 
             table.insert(names, anon and type_str or param_name)
@@ -257,7 +256,7 @@ local function expr_str(x, env, params, indexes)
         commit_names()
 
         if anon then
-            table.insert(names, expr_str(right, env, params, indexes))
+            table.insert(names, expr_str(right, env, params, indices))
             return ("(%s)"):format(table.concat(names, " -> "))
         else
             if #left > 1 then
@@ -266,7 +265,7 @@ local function expr_str(x, env, params, indexes)
                 end
             end
             return ("(%s %s%s%s)"):format(x.kind, table.concat(left, " "),
-                x.kind == "fun" and " => " or ", ", expr_str(right, env, params, indexes))
+                x.kind == "fun" and " => " or ", ", expr_str(right, env, params, indices))
         end
     elseif x.kind == "type" then
         return "type"
