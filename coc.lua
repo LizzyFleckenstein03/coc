@@ -86,7 +86,7 @@ end
 
 local function new_state()
     local globals = {}
-    local filt = filters.new() 
+    local filt = filters.new()
     return {
         verbose = false,
         included = {},
