@@ -1,6 +1,10 @@
 Toy implementation of the [calculus of (inductive) constructions](https://en.wikipedia.org/wiki/Calculus_of_constructions).
 
-Usage: `lua coc.lua [-i] <file>` or `lua coc.lua` for a REPL.
+usage: `coc.lua [-i] [-v] [-h] [<file>]`
+| `-v` | verbose mode, report all definitions from files |
+| `-i` | interactive mode, start REPL after executing <file> |
+| `-h` | show help |
+| `<file>` | coc file to run. if no file is given, a REPL is started. |
 
 The REPL can optionally make use of the `readline` package if it is installed.
 
@@ -8,7 +12,7 @@ LuaJIT is supported.
 
 [base.coc](base.coc) contains some basic data types and functions.
 
-[theorems.coc](theorems.coc) contains proofs for some theorems.
+[theorems.coc](theorems.coc) contains proofs for some example theorems.
 
 The [bugs](bugs) directory contains test files for various bugs that have been found and fixed.
 

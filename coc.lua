@@ -84,6 +84,7 @@ end
 local function new_state()
     local env_table = {}
     return {
+        verbose = false,
         included = {},
         env = function(x) return env_table[x] end,
         env_table = env_table
@@ -92,7 +93,14 @@ end
 
 local run_file
 
-local function run_command(state, com)
+local function define(state, def, quiet)
+    if not quiet then
+        print(("%s : %s"):format(def.name, expr.str(def.type, state.env)))
+    end
+    state.env_table[def.name] = def
+end
+
+local function run_command(state, com, quiet)
     if com.kind == "def" or com.kind == "check" or com.kind == "eval" then
         local res, type
         local val = com.expr and expr.bind(com.expr, state.env)
@@ -105,39 +113,28 @@ local function run_command(state, com)
             type = expr.bind(com.type, state.env)
         end
 
-        local def = com.kind == "def" and { name = com.name, type = type, val = val }
-        if def then
-            local _, err = expr.env_add(state.env, def.name, def) if err then return report_error(err) end
-        end
-
         if com.kind == "eval" then
             print(("%s\n\t= %s\n\t: %s"):format(
                 expr.str(val, state.env),
                 expr.str(res, state.env),
                 expr.str(type, state.env)))
         elseif com.kind == "def" then
-            print(("%s : %s"):format(
-                com.name,
-                expr.str(type, state.env)))
+            local def = { name = com.name, type = type, val = val }
+            local _, err = expr.env_add(state.env, def.name, def) if err then return report_error(err) end
+            define(state, def, quiet)
         elseif com.kind == "check" then
             print(("%s : %s"):format(
                 expr.str(val, state.env),
                 expr.str(type, state.env)))
         end
 
-        if def then
-            state.env_table[def.name] = def
-        end
-
         return true
     elseif com.kind == "inductive" then
         local def, err = induct.define_type(com, state.env) if err then return report_error(err) end
 
-        print(("%s : %s"):format(def.type.name, expr.str(def.type.type, state.env)))
-        state.env_table[def.type.name] = def.type
+        define(state, def.type, quiet)
         for _, ctor in ipairs(def.ctors) do
-            print(("%s : %s"):format(ctor.name, expr.str(ctor.type, state.env)))
-            state.env_table[ctor.name] = ctor
+            define(state, ctor, quiet)
         end
 
         return true
@@ -150,7 +147,7 @@ local function run_command(state, com)
     end
 end
 
-local function parse_and_run_command(state, stream)
+local function parse_and_run_command(state, stream, quiet)
     local com, err = parse.stmt(stream)
     if err then
         return report_error(err)
@@ -161,15 +158,15 @@ local function parse_and_run_command(state, stream)
         end
         return true, true
     end
-    return run_command(state, com)
+    return run_command(state, com, quiet)
 end
 
-local function run_stream(state, stream, keep_going, pre)
+local function run_stream(state, stream, quiet, keep_going, pre)
     while true do
         if pre then
             pre(stream, env)
         end
-        local success, done = parse_and_run_command(state, stream)
+        local success, done = parse_and_run_command(state, stream, quiet)
         if done then
             break
         end
@@ -196,7 +193,7 @@ run_file = function(state, path)
         return false
     end
 
-    local success = run_stream(state, parse.stream(path, f))
+    local success = run_stream(state, parse.stream(path, f), not state.verbose)
     if success then
         state.included[path] = true
     end
@@ -222,26 +219,42 @@ local function run_repl(state)
             local line = read(multiline and ">> " or "> ")
             multiline = multiline or (line and line:match("[^%s\n]"))
             return line
-        end), true, function() multiline = false end)
+        end), false, true, function() multiline = false end)
 
 end
 
-local function main()
-    local repl
-    local file
+local help_text = [[
+usage: %s [-i] [-v] [-h] [<file>]
+    -v: verbose mode, report all definitions from files
+    -i: interactive mode, start REPL after executing <file>
+    -h: show help
+    <file>: coc file to run. if no file is given, a REPL is started.
+]]
 
-    if arg[1] then
-        if arg[1] == "-i" then
+local function main()
+    local state = new_state()
+    local repl, file
+
+    local idx = 1
+    while arg[idx] and arg[idx]:sub(1,1) == "-" do
+        local ar = arg[idx]
+        idx = idx + 1
+
+        if ar == "-i" then
             repl = true
-            file = arg[2]
+        elseif ar == "-v" then
+            state.verbose = true
+        elseif ar == "--" then
+            break
         else
-            file = arg[1]
+            io.write(help_text:format(arg[0]))
+            return ar == "-h"
         end
-    else
-        repl = true
     end
 
-    local state = new_state()
+    file = arg[idx]
+    repl = repl or not file
+
     if file and not run_file(state, file) then
         return false
     end

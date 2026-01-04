@@ -252,6 +252,7 @@ local function define_type_throw(desc, env)
     type_def.elim = elim
 
     return {
+        name = desc.name,
         type = type_def,
         ctors = ctors,
     }
