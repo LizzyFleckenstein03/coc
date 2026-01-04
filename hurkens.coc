@@ -32,24 +32,24 @@ def sigma := fun u : U => u U tao
 
 # Inductive Subsets and Well Founded Elements
 
-def inductive := fun pU : (Pow U) =>
+def inductive_ := fun pU : (Pow U) =>
         forall u : U, sigma u pU -> pU u
 	: Pow (Pow U);
 
 def well_founded := fun u : U =>
-        forall pU : Pow U, inductive pU -> pU u
+        forall pU : Pow U, inductive_ pU -> pU u
 	: Pow U;
 
 # A Paradoxical Element
 
-def Omega := tao inductive
+def Omega := tao inductive_
 	: U;
 
 # The Paradoxical Element is well founded
 
 def well_founded_Omega := fun
         (pU : Pow U)
-        (ind_pU : inductive pU) =>
+        (ind_pU : inductive_ pU) =>
             ind_pU Omega (fun u : U => ind_pU (tao (sigma u)))
 	: well_founded Omega;
 
@@ -70,7 +70,7 @@ def inductive_Delta := fun
         (tao_sigma_u_pred_u : pred (tao (sigma u)) u) =>
             tao_sigma_u_pred_u Delta sigma_u_Delta (fun pU : (Pow U) =>
                 tao_sigma_u_pred_u (fun w : U => pU (tao (sigma w))))
-	: inductive Delta;
+	: inductive_ Delta;
 
 def not_well_founded_Omega :=
         fun wf_Omega : well_founded Omega =>

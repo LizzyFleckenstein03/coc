@@ -1,3 +1,5 @@
+#!/usr/bin/env lua
+
 -- for debugging purposes
 function dump(x, idt)
     local p = {}
@@ -19,6 +21,7 @@ end
 local expr = require("expr")
 local parse = require("parse")
 local eval = require("eval")
+local induct = require("induct")
 
 local function error_str(err, env, params)
     params = params or function() end
@@ -29,7 +32,7 @@ local function error_str(err, env, params)
             if (err.expr.kind == "fun" or err.expr.kind == "forall") and
                 (inner.location == "body" or inner.location == "body type") then
                 local _
-                _, new_params = expr.choose_param_name(err.expr.param.name, env, params)
+                _, new_params = expr.choose_param_name(err.expr.param, env, params)
             end
 
             loc = " in " .. inner.location
@@ -45,17 +48,25 @@ local function error_str(err, env, params)
         return ("error in %s:\n%s"):format(
             err.location,
             error_str(err.inner, env, params))
+    elseif err.err == "env" then
+        return error_str(err.inner, err.env, params)
     elseif err.err == "var_not_found" then
         return ("variable not found: %s"):format(err.var)
     elseif err.err == "not_function" then
         return ("not a function:\ngot %s : %s"):format(
             expr.str(err.expr.val, env, params),
             expr.str(err.expr.type, env, params))
+    elseif err.err == "not_inductive" then
+        return ("not an inductive type: %s"):format(err.type)
     elseif err.err == "type_mismatch" then
         return ("expected type: %s\ngot %s : %s"):format(
             expr.str(err.type, env, params),
             expr.str(err.expr.val, env, params),
             expr.str(err.expr.type, env, params))
+    elseif err.err == "constructor_type_mismatch" then
+        return ("constructor return type mismatch")
+    elseif err.err == "outer_param_mismatch" then
+        return ("outer parameter mismatch")
     elseif err.err == "already_exists" then
         return ("already exists: %s"):format(err.name)
     elseif err.err == "syntax_error" then
@@ -65,8 +76,8 @@ local function error_str(err, env, params)
     end
 end
 
-local function report_error(state, err)
-    print(error_str(err, state.env))
+local function report_error(err)
+    print(error_str(err))
     return false
 end
 
@@ -82,18 +93,17 @@ local function run_command(state, com)
         local res, type
         local val = com.expr and expr.bind(com.expr, state.env)
 
-        if val then
-            local obj, err = eval.reduce(val, state.env, com.type, com.kind ~= "eval") if err then return report_error(state, err) end
+        if com.expr then
+            local obj, err = eval.reduce(com.expr, state.env, com.type, com.kind ~= "eval") if err then return report_error(err) end
             res, type = obj.val, obj.type
         else
-            local _, err = eval.typeck(com.type, state.env, { kind = "type" }) if err then return report_error(state, err) end
+            local _, err = eval.typeck(com.type, state.env, { kind = "type" }) if err then return report_error(err) end
             type = expr.bind(com.type, state.env)
         end
 
-        if com.kind == "def" then
-            local def = { name = com.name, type = type, val = val }
-            local _, err = expr.env_add(state.env, com.name, def) if err then return report_error(state, err) end
-            state.env_table[com.name] = def
+        local def = com.kind == "def" and { name = com.name, type = type, val = val }
+        if def then
+            local _, err = expr.env_add(state.env, def.name, def) if err then return report_error(err) end
         end
 
         if com.kind == "eval" then
@@ -111,6 +121,21 @@ local function run_command(state, com)
                 expr.str(type, state.env)))
         end
 
+        if def then
+            state.env_table[def.name] = def
+        end
+
+        return true
+    elseif com.kind == "inductive" then
+        local def, err = induct.define_type(com, state.env) if err then return report_error(err) end
+
+        print(("%s : %s"):format(def.type.name, expr.str(def.type.type, state.env)))
+        state.env_table[def.type.name] = def.type
+        for _, ctor in ipairs(def.ctors) do
+            print(("%s : %s"):format(ctor.name, expr.str(ctor.type, state.env)))
+            state.env_table[ctor.name] = ctor
+        end
+
         return true
     elseif com.kind == "include" then
         return run_file(state, com.path)
@@ -124,11 +149,11 @@ end
 local function parse_and_run_command(state, stream)
     local com, err = parse.stmt(stream)
     if err then
-        return report_error(state, err)
+        return report_error(err)
     end
     if not com then
         if not parse.done(stream) then
-            return report_error(state, parse.err(stream, "expected command"))
+            return report_error(parse.err(stream, "expected command"))
         end
         return true, true
     end

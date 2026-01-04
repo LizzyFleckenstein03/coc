@@ -1,9 +1,32 @@
+local function params_add(params, name, p_type)
+    return function(x)
+        if type(x) == "number" then
+            if x == 0 then
+                return name, p_type
+            else
+                return params(x-1)
+            end
+        else
+            if x == name then
+                return 0, p_type
+            else
+                local idx, ty = params(x)
+                if idx then
+                    return idx+1, ty
+                end
+            end
+        end
+    end
+end
+
 local function used(x, var)
     local global = type(var) == "string"
     if x.kind == "bound" then
-        return (not global and x.index == var) or used(x.type, var)
+        return (not global and x.index == var) or (x.type and used(x.type, var))
     elseif x.kind == "global" then
         return global and x.name == var
+    elseif x.kind == "elim" then
+        return globla and x.type == var
     elseif x.kind == "app" then
         return used(x.right, var) or used(x.left, var)
     elseif x.kind == "fun" or x.kind == "forall" then
@@ -23,15 +46,13 @@ local function lift(x, by, subst, depth)
         if index >= depth then
             index = index + by
             if index < depth then
-                local subst_arg = x.index - depth
-                return lift(
-                    assert(subst(subst_arg)),
-                    index + 1,
-                    function(n) return subst(n+subst_arg+1) end)
+                return lift(assert(subst(x.index - depth)), depth)
             end
         end
-        return { kind = "bound", index = index, type = lift(x.type, by, subst, depth) }
+        return { kind = "bound", index = index, type = x.type and lift(x.type, by, subst, depth) }
     elseif x.kind == "global" then
+        return x
+    elseif x.kind == "elim" then
         return x
     elseif x.kind == "app" then
         return { kind = "app", left = lift(x.left, by, subst, depth), right = lift(x.right, by, subst, depth) }
@@ -59,8 +80,22 @@ local function bind(x, env, params)
         else
             return nil, { err = "var_not_found", var = x.name }
         end
-    -- convenience: allow re-binding
-    elseif x.kind == "bound" or x.kind == "global" then
+    elseif x.kind == "bound" then
+        if not x.type then
+            local _, type = params(x.index)
+            return { kind = "bound", index = x.index, type = lift(type, x.index+1) }
+        end
+        return x
+    elseif x.kind == "global" then
+        return x
+    elseif x.kind == "elim" then
+        local type = env(x.type)
+        if not type then
+            return nil, { err = "var_not_found", var = x.type }
+        end
+        if not type.elim then
+            return nil, { err = "not_inductive", type = x.type }
+        end
         return x
     elseif x.kind == "app" then
         local left, err = bind(x.left, env, params) if err then return nil, err end
@@ -68,15 +103,7 @@ local function bind(x, env, params)
         return { kind = "app", left = left, right = right }
     elseif x.kind == "fun" or x.kind == "forall" then
         local param_type, err = bind(x.param.type, env, params) if err then return nil, err end
-        local body, err = bind(x.body, env, function(name)
-            if name == x.param.name then
-                return 0, param_type
-            end
-            local index, type = params(name)
-            if index then
-                return index+1, type
-            end
-        end) if err then return nil, err end
+        local body, err = bind(x.body, env, params_add(params, x.param.name, param_type)) if err then return nil, err end
 
         return {
             kind = x.kind,
@@ -90,23 +117,32 @@ local function bind(x, env, params)
     end
 end
 
-local function params_add(params, name)
-    return function(x)
-        if type(x) == "number" then
-            return x == 0 and name or params(x-1)
-        else
-            if x == name then
-                return 0
-            end
-            local p = params(x)
-            return p and (p+1)
-        end
+local function suggest_name(type, params)
+    if type.kind == "bound" then
+        return params(type.index):sub(1,1):lower()
+    elseif type.kind == "global" then
+        return type.name:sub(1,1):lower()
+    elseif type.kind == "elim" then
+        return "e"
+    elseif type.kind == "app" then
+        return suggest_name(type.left, params)
+    elseif type.kind == "forall" or type.kind == "fun" then
+        return "f"
+    elseif type.kind == "type" then
+        return "t"
+    else
+        error(type.kind)
     end
 end
 
-local function choose_param_name(hint, env, params)
+local function choose_param_name(param, env, params)
+    local hint = param.name
+    if hint == "_" then
+        hint = suggest_name(param.type, params)
+    end
+
     if not (env(hint) or params(hint)) then
-        return hint, params_add(params, hint)
+        return hint, params_add(params, hint, param.type)
     end
 
     local name
@@ -116,7 +152,7 @@ local function choose_param_name(hint, env, params)
         postfix = postfix + 1
     until not (env(name) or params(name))
 
-    return name, params_add(params, name)
+    return name, params_add(params, name, param.type)
 end
 
 -- diff: how much deeper is b compared to a
@@ -133,6 +169,8 @@ local function expr_eq(a, b, diff, depth)
         return a.index == b.index - diff
     elseif a.kind == "global" then
         return a.name == b.name
+    elseif a.kind == "elim" then
+        return a.elim_kind == b.elim_kind and a.type == b.type
     elseif a.kind == "app" then
         return expr_eq(a.left, b.left, diff, depth) and expr_eq(a.right, b.right, diff, depth)
     elseif a.kind == "fun" or a.kind == "forall" then
@@ -144,22 +182,31 @@ local function expr_eq(a, b, diff, depth)
     end
 end
 
-local function expr_str(x, env, params)
+local function expr_str(x, env, params, indexes)
     params = params or function() end
     if x.kind == "bound" then
-        return assert(params(x.index))
+        return indexes and "#"..x.index or assert(params(x.index))
     elseif x.kind == "global" then
         return x.name
+    elseif x.kind == "elim" then
+        return ("(%s %s)"):format(x.elim_kind, x.type)
     elseif x.kind == "app" then
         local right = {}
         local left = x
 
         while left.kind == "app" do
-            table.insert(right, 1, expr_str(left.right, env, params))
+            table.insert(right, 1, expr_str(left.right, env, params, indexes))
             left = left.left
         end
 
-        return ("(%s %s)"):format(expr_str(left, env, params), table.concat(right, " "))
+        local left_str
+        if left.kind == "elim" then
+            left_str = ("%s %s"):format(left.elim_kind, left.type)
+        else
+            left_str = expr_str(left, env, params, indexes)
+        end
+
+        return ("(%s %s)"):format(left_str, table.concat(right, " "))
     elseif x.kind == "fun" or x.kind == "forall" then
         local left = {}
         local right = x
@@ -188,8 +235,8 @@ local function expr_str(x, env, params)
 
             local param_name
             type = right.param.type
-            type_str = expr_str(type, env, params)
-            param_name, params = choose_param_name(right.param.name, env, params)
+            type_str = expr_str(type, env, params, indexes)
+            param_name, params = choose_param_name(right.param, env, params)
 
             table.insert(names, anon and type_str or param_name)
 
@@ -198,7 +245,7 @@ local function expr_str(x, env, params)
         commit_names()
 
         if anon then
-            table.insert(names, expr_str(right, env, params))
+            table.insert(names, expr_str(right, env, params, indexes))
             return ("(%s)"):format(table.concat(names, " -> "))
         else
             if #left > 1 then
@@ -207,7 +254,7 @@ local function expr_str(x, env, params)
                 end
             end
             return ("(%s %s%s%s)"):format(x.kind, table.concat(left, " "),
-                x.kind == "fun" and " => " or ", ", expr_str(right, env, params))
+                x.kind == "fun" and " => " or ", ", expr_str(right, env, params, indexes))
         end
     elseif x.kind == "type" then
         return "type"

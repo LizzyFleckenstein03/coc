@@ -1,0 +1,82 @@
+inductive never |;
+
+def not := fun (T : type) => T -> never;
+
+inductive unit |
+    (mkunit : unit);
+
+inductive eq (T : type) (x : T) > (y : T) |
+    (eq_refl : eq T x x);
+
+def eq_sym := fun (T : type) (x y : T) =>
+        ind eq T x (fun (y : T) (_ : eq T x y) => eq T y x) (eq_refl T x) y
+    : forall (T : type) (x y : T), eq T x y -> eq T y x;
+
+def eq_trans := fun (T : type) (x y z : T) (eq_x_y : eq T x y) (eq_y_z : eq T y z) =>
+        ind eq T y (fun (x : T) (_ : eq T y x) => eq T x z) eq_y_z x
+            (eq_sym T x y eq_x_y)
+    : forall (T : type) (x y z : T), eq T x y -> eq T y z -> eq T x z;
+
+def eq_ext := fun (A B : type) (f : A -> B) (x y : A) (e : eq A x y) =>
+        ind eq A x (fun (y : A) (e : eq A x y) => eq B (f x) (f y)) (eq_refl B (f x)) y e
+    : forall (A B : type) (f : A -> B) (x y : A), eq A x y -> eq B (f x) (f y);
+
+inductive bool |
+    (true : bool)
+    (false : bool);
+
+def if := elim bool;
+def bnot := fun b : bool => if bool b false true;
+def band := fun a b : bool => if bool a b false;
+def bor := fun a b : bool => if bool a true b;
+def beq := fun a b : bool => if bool a b (bnot b);
+
+inductive option (T : type) |
+    (none : option T)
+    (some : T -> option T);
+
+def map := fun (A B : type) (f : A -> B) => elim option A (option B) (none B) (fun (a : A) => some B (f a));
+def flat_map := fun (A B : type) (f : A -> option B) => elim option A (option B) (none B) f;
+
+inductive sum (A B : type) |
+    (sum_left : A -> sum A B)
+    (sum_right : B -> sum A B);
+
+inductive prod (A B : type) |
+    (mkprod : A -> B -> prod A B);
+
+def fst := fun (A B : type) => elim prod A B A (fun (a : A) (b : B) => a);
+def snd := fun (A B : type) => elim prod A B B (fun (a : A) (b : B) => b);
+
+inductive nat |
+    (0 : nat)
+    (S : nat -> nat);
+
+def 1 := S 0; def 2 := S 1; def 3 := S 2; def 4 := S 3; def 5 := S 4; def 6 := S 5; def 7 := S 6; def 8 := S 7; def 9 := S 8;
+
+def add := fun (a b : nat) => rec nat nat b (fun (n : nat) (r : nat) => S r) a;
+
+inductive le (n : nat) > (m : nat) |
+    (le_n : le n n)
+    (le_S : forall m : nat, le n m -> le n (S m));
+
+def lt := fun n m : nat => le n (S m);
+
+inductive even > (n : nat) |
+    (even_0 : even 0)
+    (even_S : forall (n : nat), even n -> even (S (S n)));
+
+inductive odd > (n : nat) |
+    (odd_1 : odd (S 0))
+    (odd_S : forall (n : nat), odd n -> odd (S (S n)));
+
+inductive fin (n : nat) |
+    (mkfin : forall m : nat, lt m n -> fin n);
+
+inductive list (T : type) |
+    (nil : list T)
+    (cons : T -> list T -> list T);
+
+def head := fun (T : type) => elim list T (option T) (none T) (fun (h : T) (t : list T) => some T h);
+def tail := fun (T : type) => elim list T (list T) (nil T) (fun (h : T) (t : list T) => t);
+def len := fun (T : type) => rec list T nat 0 (fun (h : T) (t : list T) (r : nat) => S r);

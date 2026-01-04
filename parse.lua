@@ -99,12 +99,16 @@ end
 -- parse
 
 local keyword = {
+    ["elim"] = true,
+    ["rec"] = true,
+    ["ind"] = true,
     ["fun"] = true,
     ["forall"] = true,
     ["type"] = true,
     ["def"] = true,
     ["eval"] = true,
     ["check"] = true,
+    ["inductive"] = true,
     ["include"] = true,
     ["exit"] = true,
 }
@@ -179,6 +183,9 @@ local function parse_noapp_expr(st)
             or x == "type"
             or x == "fun"
             or x == "forall"
+            or x == "elim"
+            or x == "rec"
+            or x == "ind"
     end)
     if not name then
         return
@@ -188,6 +195,9 @@ local function parse_noapp_expr(st)
         return { kind = "free", name = name }
     elseif name == "type" then
         return { kind = "type" }
+    elseif name == "elim" or name == "rec" or name == "ind" then
+        local type, err = expect(st, name.." type", parse_ident(st)) if err then return nil, err end
+        return { kind = "elim", elim_kind = name, type = type }
     elseif name == "fun" or name == "forall" then
         local params, err = parse_param_list(st) if err then return nil, err end
         if #params == 0 then
@@ -249,6 +259,19 @@ local function parse_stmt(st)
         end
 
         ret = { kind = kind, name = name, expr = expr, type = type }
+    elseif kind == "inductive" then
+        local name, err = expect(st, "identifier", parse_ident(st)) if err then return nil, err end
+        local outer, err = parse_param_list(st) if err then return nil, err end
+
+        local inner, err = {}
+        if stream_get(st, ">") then
+            inner, err = parse_param_list(st) if err then return nil, err end
+        end
+
+        local _, err = expect_tok(st, "|") if err then return nil, err end
+        local ctors, err = parse_param_list(st) if err then return nil, err end
+
+        ret = { kind = "inductive", name = name, params = { outer = outer, inner = inner }, ctors = ctors }
     elseif kind == "include" then
         local path, err = expect(st, "path", stream_get(st, "[%w._-]+")) if err then return nil, err end
         ret = { kind = kind, path = path }

@@ -1,4 +1,5 @@
 local expr = require("expr")
+local iota = require("iota")
 
 local function type_match(type, x)
     if not expr.eq(type, x.type) then
@@ -25,6 +26,9 @@ local function reduce_throw(x, env, typeck)
             val = reduced_val.val
         end
         return { type = def.type, val = val or x }
+    elseif x.kind == "elim" then
+        local elim = env(x.type).elim[x.elim_kind]
+        return { type = elim.type, elim_depth = elim.params, val = x }
     elseif x.kind == "app" then
         local left, err = expect("left", reduce(x.left, env, typeck)) if err then return nil, err end
         local right, err = expect("right", reduce(x.right, env, typeck)) if err then return nil, err end
@@ -40,13 +44,25 @@ local function reduce_throw(x, env, typeck)
 
         local _, err = expect("right type", type_match(param_type.val, { val = right.val, type = right_type.val })) if err then return nil, err end
 
-        if typeck or left.val.kind ~= "fun" then
-            local out_type = expr.lift(left_type.val.body, -1, function(n) return n == 0 and right.val end)
-            return { type = out_type, val = { kind = "app", left = left.val, right = right.val } }
+        -- try beta
+        if left.val.kind == "fun" and not typeck then
+            local joint = expr.lift(left.val.body, -1, function(n) return n == 0 and right.val end)
+            return expect("application", reduce(joint, env, false))
         end
 
-        local joint = expr.lift(left.val.body, -1, function(n) return n == 0 and right.val end)
-        return expect("application", reduce(joint, env, false))
+        local joint = { kind = "app", left = left.val, right = right.val }
+        local elim_depth = left.elim_depth and (left.elim_depth - 1)
+
+        -- try iota
+        if elim_depth == 0 and not typeck then
+            local elim, reduced = iota.reduce(joint, env)
+            if reduced then
+                return expect("eliminated", reduce(elim, env, false))
+            end
+        end
+
+        local out_type = expr.lift(left_type.val.body, -1, function(n) return n == 0 and right.val end)
+        return { type = out_type, elim_depth = elim_depth, val = joint }
     elseif x.kind == "fun" or x.kind == "forall" then
         local param_type, err = expect("param type", reduce(x.param.type, env, typeck)) if err then return nil, err end
         local _, err = expect("param type", type_match({ kind = "type" }, param_type)) if err then return nil, err end
@@ -79,17 +95,24 @@ reduce = function(x, env, typeck)
     return val
 end
 
+local function expect_env(env, val, err)
+    if err then
+        return nil, { err = "env", env = env, inner = err }
+    end
+    return val
+end
+
 local function reduce_check(x, env, want_type, typeck)
     local bound, err = expr.bind(x, env) if err then return nil, err end
-    local obj, err = reduce(bound, env, typeck) if err then return nil, err end
+    local obj, err = expect_env(env, reduce(bound, env, typeck)) if err then return nil, err end
 
     if not want_type then
         return obj
     end
 
-    local type, err = reduce_check(obj.type, env) if err then return nil, err end
+    local type, err = expect_env(env, reduce(obj.type, env)) if err then return nil, err end
     local want_type_r, err = reduce_check(want_type, env) if err then return nil, err end
-    local _, err = type_match(want_type_r.val, { val = bound, type = type.val }) if err then return nil, err end
+    local _, err = expect_env(env, type_match(want_type_r.val, { val = bound, type = type.val })) if err then return nil, err end
 
     return { val = obj.val, type = expr.bind(want_type, env) }
 end
