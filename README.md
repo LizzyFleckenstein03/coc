@@ -1,8 +1,11 @@
 Toy implementation of the [calculus of (inductive) constructions](https://en.wikipedia.org/wiki/Calculus_of_constructions).
 
 usage: `coc.lua [-i] [-v] [-h] [<file>]`
+
+| option | meaning |
+|-|-|
 | `-v` | verbose mode, report all definitions from files |
-| `-i` | interactive mode, start REPL after executing <file> |
+| `-i` | interactive mode, start REPL after executing `<file>` |
 | `-h` | show help |
 | `<file>` | coc file to run. if no file is given, a REPL is started. |
 
