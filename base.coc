@@ -25,11 +25,11 @@ inductive bool |
     (true : bool)
     (false : bool);
 
-def if := elim bool;
-def bnot := fun b : bool => if bool b false true;
-def band := fun a b : bool => if bool a b false;
-def bor := fun a b : bool => if bool a true b;
-def beq := fun a b : bool => if bool a b (bnot b);
+def if := fun (b : bool) (T : type) (t f : T) => elim bool T t f b;
+def bnot := fun b : bool => if b bool false true;
+def band := fun a b : bool => if a bool b false;
+def bor := fun a b : bool => if a bool true b;
+def beq := fun a b : bool => if a bool b (bnot b);
 
 inductive option (T : type) |
     (none : option T)
