@@ -1,6 +1,6 @@
 Toy implementation of the [calculus of (inductive) constructions](https://en.wikipedia.org/wiki/Calculus_of_constructions).
 
-usage: `coc.lua [-i] [-v] [-h] [<file>]`
+Usage: `coc.lua [-i] [-v] [-h] [<file>]`
 
 | option | meaning |
 |-|-|
