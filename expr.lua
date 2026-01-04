@@ -263,6 +263,28 @@ local function expr_str(x, env, params, indexes)
     end
 end
 
+local function axioms(x, t, env)
+    if x.kind == "bound" or x.kind == "elim" or x.kind == "type" then
+        -- no-op
+    elseif x.kind == "global" then
+        local def = env(x.name)
+        if def.val then
+            axioms(def.val, t, env)
+        elseif not def.elim and not def.ctor then
+            table.insert(t, x.name)
+        end
+        axioms(def.type, t, env)
+    elseif x.kind == "app" then
+        axioms(x.left, t, env)
+        axioms(x.right, t, env)
+    elseif x.kind == "fun" or x.kind == "forall" then
+        axioms(x.param.type, t, env)
+        axioms(x.body, t, env)
+    else
+        error(x.kind)
+    end
+end
+
 local function fun(kind, params, body)
     local x = body
     for i = #params, 1, -1 do
@@ -289,6 +311,7 @@ return {
     choose_param_name = choose_param_name,
     eq = expr_eq,
     str = expr_str,
+    axioms = axioms,
     fun = fun,
     env_add = env_add,
 }

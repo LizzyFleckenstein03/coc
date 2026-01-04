@@ -108,6 +108,7 @@ local keyword = {
     ["def"] = true,
     ["eval"] = true,
     ["check"] = true,
+    ["axioms"] = true,
     ["inductive"] = true,
     ["include"] = true,
     ["exit"] = true,
@@ -259,6 +260,9 @@ local function parse_stmt(st)
         end
 
         ret = { kind = kind, name = name, expr = expr, type = type }
+    elseif kind == "axioms" then
+        local expr, err = expect(st, "expression", parse_expr(st)) if err then return nil, err end
+        ret = { kind = kind, expr = expr }
     elseif kind == "inductive" then
         local name, err = expect(st, "identifier", parse_ident(st)) if err then return nil, err end
         local outer, err = parse_param_list(st) if err then return nil, err end

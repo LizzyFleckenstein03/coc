@@ -101,7 +101,7 @@ local function define(state, def, quiet)
 end
 
 local function run_command(state, com, quiet)
-    if com.kind == "def" or com.kind == "check" or com.kind == "eval" then
+    if com.kind == "def" or com.kind == "check" or com.kind == "eval" or com.kind == "axioms" then
         local res, type
         local val = com.expr and expr.bind(com.expr, state.env)
 
@@ -126,6 +126,17 @@ local function run_command(state, com, quiet)
             print(("%s : %s"):format(
                 expr.str(val, state.env),
                 expr.str(type, state.env)))
+        elseif com.kind == "axioms" then
+            local axioms = {}
+            expr.axioms(val, axioms, state.env)
+            if #axioms > 0 then
+                print(("assumptions in %s: %s."):format(
+                    expr.str(val, state.env),
+                    table.concat(axioms, ", ")))
+            else
+                print(("no assumptions in %s."):format(
+                    expr.str(val, state.env)))
+            end
         end
 
         return true
