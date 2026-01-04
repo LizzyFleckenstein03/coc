@@ -1,10 +1,18 @@
 local eval = require("eval")
 local expr = require("expr")
 
+local function app(a, b, ...)
+    if b then
+        return app({ kind = "app", left = a, right = b }, ...)
+    else
+        return a
+    end
+end
+
 local function parse_uint(f, x)
     local v = { kind = "global", name = f.zero }
     for i = 1, x.val do
-        v = { kind = "app", left = { kind = "global", name = f.succ }, right = v }
+        v = app({ kind = "global", name = f.succ }, v)
     end
     return v
 end
@@ -21,9 +29,41 @@ local function display_uint(f, x)
     end
 end
 
+local function parse_array(f, x)
+    local v = app({ kind = "global", name = f.empty }, x.type)
+    for i = #x.elems, 1, -1 do
+        v = app({ kind = "global", name = f.cons }, x.type, x.elems[i], v)
+    end
+    return v
+end
+
+local function display_array(f, x, ...)
+    local elems = {}
+
+    while true do
+        local args = {}
+        local l = x
+        while l.kind == "app" do
+            table.insert(args, 1, l.right)
+            l = l.left
+        end
+
+        if l.kind ~= "global" or l.name ~= f.cons or #args ~= 3 then
+            break
+        end
+
+        table.insert(elems, expr.str(args[2], ...))
+        x = args[3]
+    end
+
+    if x.kind == "app" and x.left.kind == "global" and x.left.name == f.empty then
+        return ("[%s%s %s]"):format(table.concat(elems, ", "), #elems > 0 and " :" or ":", expr.str(x.right, ...))
+    end
+end
+
 local handlers = {
-    parse = { uint = parse_uint },
-    display = { uint = display_uint }
+    parse = { uint = parse_uint, array = parse_array },
+    display = { uint = display_uint, array = display_array }
 }
 
 local function filter_error(msg, ...)
@@ -69,6 +109,11 @@ local function register(filters, desc, env)
         filt.uint = {
             zero = desc.args[1],
             succ = desc.args[2],
+        }
+    elseif desc.filter_name == "array" then
+        filt.array = {
+            empty = desc.args[1],
+            cons = desc.args[2],
         }
     else
         error(desc.filter_name)

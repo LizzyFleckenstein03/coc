@@ -78,6 +78,11 @@ inductive list (T : type) |
     (nil : list T)
     (cons : T -> list T -> list T);
 
+filter display array nil cons;
+filter parse array nil cons;
+
 def head := fun (T : type) => elim list T (option T) (none T) (fun (h : T) (t : list T) => some T h);
 def tail := fun (T : type) => elim list T (list T) (nil T) (fun (h : T) (t : list T) => t);
 def len := fun (T : type) => rec list T nat 0 (fun (h : T) (t : list T) (r : nat) => S r);
+
+def app := fun (T : type) (a b : list T) => rec list T (list T) b (fun (h : T) (t : list T) (r : list T) => cons T h r) a;

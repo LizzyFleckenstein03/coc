@@ -181,9 +181,29 @@ local function parse_noapp_expr(st)
         return expr
     end
 
+    if stream_get(st, "%[") then
+        local elems = {}
+        while true do
+            local expr, err = parse_expr(st) if err then return nil, err end
+            if not expr then
+                break
+            end
+            table.insert(elems, expr)
+            if not stream_get(st, ",") then
+                break
+            end
+        end
+
+        local _, err = expect_tok(st, ":") if err then return nil, err end
+        local type, err = expect(st, "list type", parse_expr(st)) if err then return nil, err end
+
+        local _, err = expect_tok(st, "%]", "]") if err then return nil, err end
+        return { kind = "custom", custom_kind = "array", type = type, elems = elems }
+    end
+
     local uint = stream_get(st, "[%d]+")
     if uint then
-        return { kind = "custom", custom_kind = "uint", val = uint }
+        return { kind = "custom", custom_kind = "uint", val = tonumber(uint) }
     end
 
     local name = parse_name(st, function(x)
