@@ -83,7 +83,11 @@ end
 
 local function new_state()
     local env_table = {}
-    return { env = function(x) return env_table[x] end, env_table = env_table }
+    return {
+        included = {},
+        env = function(x) return env_table[x] end,
+        env_table = env_table
+    }
 end
 
 local run_file
@@ -182,13 +186,21 @@ local function run_stream(state, stream, keep_going, pre)
 end
 
 run_file = function(state, path)
+    if state.included[path] then
+        return true
+    end
+
     local f = io.open(path, "r")
     if not f then
         print("error: failed to open file " .. path)
         return false
     end
 
-    return run_stream(state, parse.stream(path, f))
+    local success = run_stream(state, parse.stream(path, f))
+    if success then
+        state.included[path] = true
+    end
+    return success
 end
 
 local function run_repl(state)
