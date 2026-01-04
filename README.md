@@ -1,4 +1,4 @@
-Toy implementation of the [calculus of (inductive) constructions](https://en.wikipedia.org/wiki/Calculus_of_constructions).
+Toy implementation of the [calculus of (inductive) constructions](https://rocq-prover.org/doc/v8.9/refman/language/cic.html).
 
 Usage: `coc.lua [-i] [-v] [-h] [<file>]`
 
