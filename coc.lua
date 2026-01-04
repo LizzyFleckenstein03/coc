@@ -166,31 +166,52 @@ run_file = function(state, path)
     return run_stream(state, parse.stream(path, f))
 end
 
-local function main()
-    local state = new_state()
-    if arg[1] then
-        return run_file(state, arg[1])
+local function run_repl(state)
+    local has_readline, readline = pcall(require, "readline")
+    local read
+
+    if has_readline then
+        read = readline.readline
     else
-        local has_readline, readline = pcall(require, "readline")
-        local read
-
-        if has_readline then
-            read = readline.readline
-        else
-            read = function(prompt)
-                io.write(prompt)
-                return io.read()
-            end
+        read = function(prompt)
+            io.write(prompt)
+            return io.read()
         end
-
-        local multiline = false
-        return run_stream(state,
-            parse.stream("stdin", function()
-                local line = read(multiline and ">> " or "> ")
-                multiline = multiline or (line and line:match("[^%s\n]"))
-                return line
-            end), true, function() multiline = false end)
     end
+
+    local multiline = false
+    return run_stream(state,
+        parse.stream("stdin", function()
+            local line = read(multiline and ">> " or "> ")
+            multiline = multiline or (line and line:match("[^%s\n]"))
+            return line
+        end), true, function() multiline = false end)
+
+end
+
+local function main()
+    local repl
+    local file
+
+    if arg[1] then
+        if arg[1] == "-i" then
+            repl = true
+            file = arg[2]
+        else
+            file = arg[1]
+        end
+    else
+        repl = true
+    end
+
+    local state = new_state()
+    if file and not run_file(state, file) then
+        return false
+    end
+    if repl and not run_repl(state) then
+        return false
+    end
+    return true
 end
 
 if not main() then
