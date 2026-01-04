@@ -22,7 +22,7 @@ local expr = require("expr")
 local parse = require("parse")
 local eval = require("eval")
 local induct = require("induct")
-local filters = require("filters")
+local notation = require("notation")
 
 local function error_str(err, env, params)
     params = params or function() end
@@ -70,7 +70,7 @@ local function error_str(err, env, params)
         return ("outer parameter mismatch")
     elseif err.err == "already_exists" then
         return ("already exists: %s"):format(err.name)
-    elseif err.err == "filter_error" then
+    elseif err.err == "notation_error" then
         return err.msg
     elseif err.err == "syntax_error" then
         return ("syntax error in %s: %s"):format(err.pos, err.msg)
@@ -86,16 +86,16 @@ end
 
 local function new_state()
     local globals = {}
-    local filt = filters.new()
+    local notations = notation.new()
     return {
         verbose = false,
         included = {},
         globals = globals,
-        filters = filt,
+        notations = notations,
         env = {
             global = function(x) return globals[x] end,
-            parse = function(...) return filters.parse(filt, ...) end,
-            display = function(...) return filters.display(filt, ...) end,
+            parse = function(...) return notation.parse(notations, ...) end,
+            display = function(...) return notation.display(notations, ...) end,
         },
     }
 end
@@ -158,8 +158,8 @@ local function run_command(state, com, quiet)
         end
 
         return true
-    elseif com.kind == "filter" then
-        local _, err = filters.register(state.filters, com, state.env) if err then return report_error(err) end
+    elseif com.kind == "notation" then
+        local _, err = notation.register(state.notations, com, state.env) if err then return report_error(err) end
         return true
     elseif com.kind == "include" then
         return run_file(state, com.path)

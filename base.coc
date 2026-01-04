@@ -52,8 +52,8 @@ inductive nat |
     (Z : nat)
     (S : nat -> nat);
 
-filter display uint Z S;
-filter parse uint Z S;
+notation display uint Z S;
+notation parse uint Z S;
 
 def add := fun (a b : nat) => rec nat nat b (fun (n : nat) (r : nat) => S r) a;
 
@@ -78,8 +78,8 @@ inductive list (T : type) |
     (nil : list T)
     (cons : T -> list T -> list T);
 
-filter display array nil cons;
-filter parse array nil cons;
+notation display array nil cons;
+notation parse array nil cons;
 
 def head := fun (T : type) => elim list T (option T) (none T) (fun (h : T) (t : list T) => some T h);
 def tail := fun (T : type) => elim list T (list T) (nil T) (fun (h : T) (t : list T) => t);

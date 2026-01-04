@@ -110,7 +110,7 @@ local keyword = {
     ["check"] = true,
     ["axioms"] = true,
     ["inductive"] = true,
-    ["filter"] = true,
+    ["notation"] = true,
     ["include"] = true,
     ["exit"] = true,
 }
@@ -303,9 +303,9 @@ local function parse_stmt(st)
         local ctors, err = parse_param_list(st) if err then return nil, err end
 
         ret = { kind = "inductive", name = name, params = { outer = outer, inner = inner }, ctors = ctors }
-    elseif kind == "filter" then
-        local filter_kind, err = expect(st, "filter kind", parse_ident(st)) if err then return nil, err end
-        local filter_name, err = expect(st, "filter name", parse_ident(st)) if err then return nil, err end
+    elseif kind == "notation" then
+        local notation_kind, err = expect(st, "notation kind", parse_ident(st)) if err then return nil, err end
+        local notation_name, err = expect(st, "notation name", parse_ident(st)) if err then return nil, err end
 
         local args = {}
         while true do
@@ -316,7 +316,7 @@ local function parse_stmt(st)
             table.insert(args, ar)
         end
 
-        ret = { kind = kind, filter_kind = filter_kind, filter_name = filter_name, args = args }
+        ret = { kind = kind, notation_kind = notation_kind, notation_name = notation_name, args = args }
     elseif kind == "include" then
         local path, err = expect(st, "path", stream_get(st, "[%w._-]+")) if err then return nil, err end
         ret = { kind = kind, path = path }
