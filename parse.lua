@@ -318,7 +318,7 @@ local function parse_stmt(st)
 
         ret = { kind = kind, notation_kind = notation_kind, notation_name = notation_name, args = args }
     elseif kind == "include" then
-        local path, err = expect(st, "path", stream_get(st, "[%w._-]+")) if err then return nil, err end
+        local path, err = expect(st, "path", stream_get(st, "[%w%/%\\:._-]+")) if err then return nil, err end
         ret = { kind = kind, path = path }
     elseif kind == "exit" then
         return { kind = "exit" }
