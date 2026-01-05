@@ -138,10 +138,15 @@ local function run_command(state, com, quiet)
         elseif com.kind == "axioms" then
             local axioms = {}
             expr.axioms(val, axioms, state.env)
+            for i, ax in ipairs(axioms) do
+                axioms[i] = ("(%s : %s)"):format(
+                    ax.name,
+                    expr.str(ax.type, state.env))
+            end
             if #axioms > 0 then
-                print(("assumptions in %s: %s."):format(
+                print(("assumptions in %s:\n\t%s"):format(
                     expr.str(val, state.env),
-                    table.concat(axioms, ", ")))
+                    table.concat(axioms, "\n\t")))
             else
                 print(("no assumptions in %s."):format(
                     expr.str(val, state.env)))

@@ -282,7 +282,7 @@ local function axioms(x, t, env)
         if def.val then
             axioms(def.val, t, env)
         elseif not def.elim and not def.ctor then
-            table.insert(t, x.name)
+            table.insert(t, def)
         end
         axioms(def.type, t, env)
     elseif x.kind == "app" then
