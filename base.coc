@@ -8,6 +8,8 @@ inductive unit |
 inductive eq (T : type) (x : T) > (y : T) |
     (eq_refl : eq T x x);
 
+def neq := fun (T : type) (x y : T) => not (eq T x y);
+
 def eq_sym := fun (T : type) (x y : T) =>
         ind eq T x (fun (y : T) (_ : eq T x y) => eq T y x) (eq_refl T x) y
     : forall (T : type) (x y : T), eq T x y -> eq T y x;
