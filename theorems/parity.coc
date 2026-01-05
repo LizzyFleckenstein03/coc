@@ -39,8 +39,8 @@ def parity_dec_S_lr := fun (n : nat) =>
         ind or (even n) (odd n)
             (fun x : or (even n) (odd n) => or_is_left (even n) (odd n) x
                 -> or_is_right (even (S n)) (odd (S n)) (parity_dec_S n x))
-            (fun (_ : even n) (x : unit) => x)
-            (fun (o : odd n) => elim never (or_is_right (even (S n)) (odd (S n))
+            (fun (_ : even n) (x : true) => x)
+            (fun (o : odd n) => elim false (or_is_right (even (S n)) (odd (S n))
                 (parity_dec_S n (or_right (even n) (odd n) o))))
         (parity_dec n)
     : forall (n : nat), or_is_left (even n) (odd n) (parity_dec n)
@@ -50,21 +50,21 @@ def parity_dec_S_rl := fun (n : nat) =>
         ind or (even n) (odd n)
             (fun x : or (even n) (odd n) => or_is_right (even n) (odd n) x
                 -> or_is_left (even (S n)) (odd (S n)) (parity_dec_S n x))
-            (fun (e : even n) => elim never (or_is_left (even (S n)) (odd (S n))
+            (fun (e : even n) => elim false (or_is_left (even (S n)) (odd (S n))
                 (parity_dec_S n (or_left (even n) (odd n) e))))
-            (fun (_ : odd n) (x : unit) => x)
+            (fun (_ : odd n) (x : true) => x)
         (parity_dec n)
     : forall (n : nat), or_is_right (even n) (odd n) (parity_dec n)
         -> or_is_left (even (S n)) (odd (S n)) (parity_dec (S n));
 
 def parity_dec_even :=
-        ind even (fun (n : nat) (_ : even n) => or_is_left (even n) (odd n) (parity_dec n)) mkunit
+        ind even (fun (n : nat) (_ : even n) => or_is_left (even n) (odd n) (parity_dec n)) mktrue
             (fun (n : nat) (_ : even n) (IH : or_is_left (even n) (odd n) (parity_dec n)) =>
                 parity_dec_S_rl (S n) (parity_dec_S_lr n IH))
     : forall (n : nat), even n -> or_is_left (even n) (odd n) (parity_dec n);
 
 def parity_dec_odd :=
-        ind odd (fun (n : nat) (_ : odd n) => or_is_right (even n) (odd n) (parity_dec n)) mkunit
+        ind odd (fun (n : nat) (_ : odd n) => or_is_right (even n) (odd n) (parity_dec n)) mktrue
             (fun (n : nat) (_ : odd n) (IH : or_is_right (even n) (odd n) (parity_dec n)) =>
                 parity_dec_S_lr (S n) (parity_dec_S_rl n IH))
     : forall (n : nat), odd n -> or_is_right (even n) (odd n) (parity_dec n);

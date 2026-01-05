@@ -1,9 +1,9 @@
-inductive never |;
+inductive false |;
 
-def not := fun (T : type) => T -> never;
+def not := fun (T : type) => T -> false;
 
-inductive unit |
-    (mkunit : unit);
+inductive true |
+    (mktrue : true);
 
 inductive eq (T : type) (x : T) > (y : T) |
     (eq_refl : eq T x x);
@@ -24,13 +24,13 @@ def eq_ext := fun (A B : type) (f : A -> B) (x y : A) (e : eq A x y) =>
     : forall (A B : type) (f : A -> B) (x y : A), eq A x y -> eq B (f x) (f y);
 
 inductive bool |
-    (true : bool)
-    (false : bool);
+    (btrue : bool)
+    (bfalse : bool);
 
 def if := fun (b : bool) (T : type) (t f : T) => elim bool T t f b;
-def bnot := fun b : bool => if b bool false true;
-def band := fun a b : bool => if a bool b false;
-def bor := fun a b : bool => if a bool true b;
+def bnot := fun b : bool => if b bool bfalse btrue;
+def band := fun a b : bool => if a bool b bfalse;
+def bor := fun a b : bool => if a bool btrue b;
 def beq := fun a b : bool => if a bool b (bnot b);
 
 inductive option (T : type) |
@@ -44,12 +44,12 @@ inductive or (A B : type) |
     (or_left : A -> or A B)
     (or_right : B -> or A B);
 
-def or_is_left := fun A B : type => elim or A B type (fun a : A => unit) (fun b : B => never);
-def or_is_right := fun A B : type => elim or A B type (fun a : A => never) (fun b : B => unit);
+def or_is_left := fun A B : type => elim or A B type (fun a : A => true) (fun b : B => false);
+def or_is_right := fun A B : type => elim or A B type (fun a : A => false) (fun b : B => true);
 
 def or_not_both := fun A B : type => ind or A B
         (fun o : or A B => or_is_left A B o -> not (or_is_right A B o))
-        (fun (_ : A) (_ : unit) (n : never) => n) (fun (_ : B) (n : never) (_ : unit) => n)
+        (fun (_ : A) (_ : true) (f : false) => f) (fun (_ : B) (f : false) (_ : true) => f)
     : forall (A B : type) (o : or A B), or_is_left A B o -> not (or_is_right A B o);
 
 inductive and (A B : type) |
