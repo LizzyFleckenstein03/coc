@@ -1,0 +1,74 @@
+include base.coc;
+
+def even_odd_S :=
+        ind even (fun (n : nat) (_ : even n) => odd (S n))
+            odd_1 (fun (n : nat) (_ : even n) => odd_S (S n))
+    : forall (n : nat), even n -> odd (S n);
+
+def odd_even_S :=
+        ind odd (fun (n : nat) (_ : odd n) => even (S n))
+            (even_S 0 (even_0)) (fun (n : nat) (_ : odd n) => even_S (S n))
+    : forall (n : nat), odd n -> even (S n);
+
+def add_even_odd := fun (a b : nat) (e : even a) (o : odd b) =>
+        ind even (fun (a : nat) (_ : even a) => odd (add a b))
+            o (fun (a : nat) (_ : even a) => odd_S (add a b)) a e
+    : forall (a b : nat), even a -> odd b -> odd (add a b);
+
+def add_even_even := fun (a b : nat) (ea : even a) (eb : even b) =>
+        ind even (fun (a : nat) (_ : even a) => even (add a b))
+            eb (fun (a : nat) (_ : even a) => even_S (add a b)) a ea
+    : forall (a b : nat), even a -> even b -> even (add a b);
+
+def add_odd_odd := fun (a b : nat) (oa : odd a) (ob : odd b) =>
+        ind odd (fun (a : nat) (_ : odd a) => even (add a b))
+            (odd_even_S b ob) (fun (a : nat) (_ : odd a) => even_S (add a b)) a oa
+    : forall (a b : nat), odd a -> odd b -> even (add a b);
+
+def parity_dec_S := fun n : nat =>
+    elim or (even n) (odd n) (or (even (S n)) (odd (S n)))
+        (fun (e : even n) => or_right (even (S n)) (odd (S n)) (even_odd_S n e))
+        (fun (o :  odd n) => or_left  (even (S n)) (odd (S n)) (odd_even_S n o));
+
+def parity_dec :=
+        ind nat (fun (n : nat) => or (even n) (odd n))
+            (or_left (even 0) (odd 0) even_0) parity_dec_S
+    : forall (n : nat), or (even n) (odd n);
+
+def parity_dec_S_lr := fun (n : nat) =>
+        ind or (even n) (odd n)
+            (fun x : or (even n) (odd n) => or_is_left (even n) (odd n) x
+                -> or_is_right (even (S n)) (odd (S n)) (parity_dec_S n x))
+            (fun (_ : even n) (x : unit) => x)
+            (fun (o : odd n) => elim never (or_is_right (even (S n)) (odd (S n))
+                (parity_dec_S n (or_right (even n) (odd n) o))))
+        (parity_dec n)
+    : forall (n : nat), or_is_left (even n) (odd n) (parity_dec n)
+        -> or_is_right (even (S n)) (odd (S n)) (parity_dec (S n));
+
+def parity_dec_S_rl := fun (n : nat) =>
+        ind or (even n) (odd n)
+            (fun x : or (even n) (odd n) => or_is_right (even n) (odd n) x
+                -> or_is_left (even (S n)) (odd (S n)) (parity_dec_S n x))
+            (fun (e : even n) => elim never (or_is_left (even (S n)) (odd (S n))
+                (parity_dec_S n (or_left (even n) (odd n) e))))
+            (fun (_ : odd n) (x : unit) => x)
+        (parity_dec n)
+    : forall (n : nat), or_is_right (even n) (odd n) (parity_dec n)
+        -> or_is_left (even (S n)) (odd (S n)) (parity_dec (S n));
+
+def parity_dec_even :=
+        ind even (fun (n : nat) (_ : even n) => or_is_left (even n) (odd n) (parity_dec n)) mkunit
+            (fun (n : nat) (_ : even n) (IH : or_is_left (even n) (odd n) (parity_dec n)) =>
+                parity_dec_S_rl (S n) (parity_dec_S_lr n IH))
+    : forall (n : nat), even n -> or_is_left (even n) (odd n) (parity_dec n);
+
+def parity_dec_odd :=
+        ind odd (fun (n : nat) (_ : odd n) => or_is_right (even n) (odd n) (parity_dec n)) mkunit
+            (fun (n : nat) (_ : odd n) (IH : or_is_right (even n) (odd n) (parity_dec n)) =>
+                parity_dec_S_lr (S n) (parity_dec_S_rl n IH))
+    : forall (n : nat), odd n -> or_is_right (even n) (odd n) (parity_dec n);
+
+def even_odd_excl := fun (n : nat) (e : even n) (o : odd n) =>
+        or_not_both (even n) (odd n) (parity_dec n) (parity_dec_even n e) (parity_dec_odd n o)
+    : forall (n : nat), even n -> not (odd n);

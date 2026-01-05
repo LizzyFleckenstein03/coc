@@ -1,0 +1,9 @@
+include base.coc;
+
+def app_assoc := fun (T : type) (a b c : list T) =>
+        ind list T (fun (a : list T) => eq (list T) (app T a (app T b c)) (app T (app T a b) c))
+            (eq_refl (list T) (app T b c))
+            (fun (t : T) (a : list T) =>
+                eq_ext (list T) (list T) (cons T t) (app T a (app T b c)) (app T (app T a b) c))
+            a
+    : forall (T : type) (a b c : list T), eq (list T) (app T a (app T b c)) (app T (app T a b) c);

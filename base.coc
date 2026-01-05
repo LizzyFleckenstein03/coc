@@ -38,15 +38,26 @@ inductive option (T : type) |
 def map := fun (A B : type) (f : A -> B) => elim option A (option B) (none B) (fun (a : A) => some B (f a));
 def flat_map := fun (A B : type) (f : A -> option B) => elim option A (option B) (none B) f;
 
-inductive sum (A B : type) |
-    (sum_left : A -> sum A B)
-    (sum_right : B -> sum A B);
+inductive or (A B : type) |
+    (or_left : A -> or A B)
+    (or_right : B -> or A B);
 
-inductive prod (A B : type) |
-    (mkprod : A -> B -> prod A B);
+def or_is_left := fun A B : type => elim or A B type (fun a : A => unit) (fun b : B => never);
+def or_is_right := fun A B : type => elim or A B type (fun a : A => never) (fun b : B => unit);
 
-def fst := fun (A B : type) => elim prod A B A (fun (a : A) (b : B) => a);
-def snd := fun (A B : type) => elim prod A B B (fun (a : A) (b : B) => b);
+def or_not_both := fun A B : type => ind or A B
+        (fun o : or A B => or_is_left A B o -> not (or_is_right A B o))
+        (fun (_ : A) (_ : unit) (n : never) => n) (fun (_ : B) (n : never) (_ : unit) => n)
+    : forall (A B : type) (o : or A B), or_is_left A B o -> not (or_is_right A B o);
+
+inductive and (A B : type) |
+    (mkand : A -> B -> and A B);
+
+def fst := fun (A B : type) => elim and A B A (fun (a : A) (b : B) => a);
+def snd := fun (A B : type) => elim and A B B (fun (a : A) (b : B) => b);
+
+inductive ex (A : type) (B : A -> type) |
+    (mkex : forall a : A, B a -> ex A B);
 
 inductive nat |
     (Z : nat)

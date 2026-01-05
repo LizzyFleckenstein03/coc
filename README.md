@@ -15,7 +15,7 @@ LuaJIT is supported.
 
 [base.coc](base.coc) contains some basic data types and functions.
 
-[theorems.coc](theorems.coc) contains proofs for some example theorems.
+The [theorems](theorems) directory contains proofs for some example theorems.
 
 The [bugs](bugs) directory contains test files for various bugs that have been found and fixed.
 
