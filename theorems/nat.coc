@@ -37,3 +37,7 @@ def add_comm := fun a b : nat =>
                     (add_S_r b a))
             a
     : forall (a b : nat), eq nat (add a b) (add b a);
+
+def neq_0_S := fun (n : nat) => ind eq nat 0
+        (fun (n : nat) (_ : eq nat 0 n) => elim nat type true (fun _ : nat => false) n) mktrue (S n)
+    : forall (n : nat), neq nat 0 (S n);
