@@ -17,9 +17,9 @@ LuaJIT is supported.
 
 The [theorems](theorems) directory contains proofs for some example theorems.
 
-The [bugs](bugs) directory contains test files for various bugs that have been found and fixed.
+The [bugs](bugs) directory contains test files for various bugs that have either been fixed or will be fixed in the future.
 
-Type universes are TODO. This means that right now the logic is inconsistent, since type-in-type allows for paradoxes. See [hurkens.coc](hurkens.coc) for an implementation of Hurken's paradox.
+Type universes are TODO. This means that right now the logic is inconsistent, since type-in-type allows for paradoxes. See [bugs/hurkens.coc](bugs/hurkens.coc) for an implementation of Hurken's paradox.
 
 Some helpful papers used:
 - https://pauillac.inria.fr/~herbelin/publis/univalgcci.pdf
