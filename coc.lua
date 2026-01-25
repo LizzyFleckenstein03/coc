@@ -59,6 +59,8 @@ local function error_str(err, env, params)
             expr.str(err.expr.type, env, params))
     elseif err.err == "not_inductive" then
         return ("not an inductive type: %s"):format(err.type)
+    elseif err.err == "not_positive" then
+        return ("non strictly-positive occurance of %s"):format(err.name)
     elseif err.err == "type_mismatch" then
         return ("expected type: %s\ngot %s : %s"):format(
             expr.str(err.type, env, params),

@@ -116,13 +116,13 @@ local function define_ctor(ctor, num, desc, elim_params, env)
     local params_ind = {}
     for i, param in ipairs(params) do
         local offset = #params+#params_rec
-        local rec, ind, err = ctor_param(
+        local rec, err = ctor_param(
             param.type,
             desc,
             ret_type+offset,
             outer_args+offset,
             offset-i
-        )
+        ) if err then return nil, err end
         if rec then
             table.insert(params_rec, { name = underscore("rec", param.name), type = rec.rec })
             table.insert(params_ind, { name = underscore("IH", param.name), type = rec.ind })
