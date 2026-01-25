@@ -4,18 +4,10 @@ local reduce
 
 local function recursive_call(val, type, elim, cases, base, env, depth)
     local params = {}
-    while type.kind == "forall" do
-        table.insert(params, type.param)
-        type = type.body
-    end
-
     local type_args = {}
-    while type.kind == "app" do
-        table.insert(type_args, 1, type.right)
-        type = type.left
-    end
+    local peeled_type = expr.peel_app(expr.peel_forall(type, params), type_args)
 
-    if type.kind ~= "global" or type.name ~= elim.name then
+    if not expr.is_global(peeled_type, elim.name) then
         return
     end
 
@@ -25,31 +17,19 @@ local function recursive_call(val, type, elim, cases, base, env, depth)
     end
 
     local result = expr.lift(val, #params)
-    for _, param in ipairs(params) do
-        result = { kind = "app", left = result, right = param.name }
-    end
-
+    result = expr.app_range(result, 0, #params)
     result = reduce(result, elim, cases, base, inner_args, env, depth + #params)
-    result = expr.fun("fun", params, result)
+    result = expr.fun_t(params, result)
     return result
 end
 
 reduce = function(val, elim, cases, base, inner_args, env, depth)
     local args = {}
-
-    local ctor = val
-    while ctor.kind == "app" do
-        table.insert(args, 1, ctor.right)
-        ctor = ctor.left
-    end
+    local ctor = expr.peel_app(val, args)
 
     local def = ctor.kind == "global" and env.global(ctor.name).ctor
     if not def then
-        local result = expr.lift(base, depth)
-        for _, inner in ipairs(inner_args) do
-            result = { kind = "app", left = result, right = inner }
-        end
-        return { kind = "app", left = result, right = val }, false
+        return expr.app(expr.app_t(expr.lift(base, depth), inner_args), val), false
     end
 
     local result = expr.lift(cases[def.case], depth)
@@ -60,10 +40,10 @@ reduce = function(val, elim, cases, base, inner_args, env, depth)
     for i, ar in ipairs(args) do
         -- assert(type.kind == "forall")
         local param = type.param
-        type = expr.lift(type.body, -1, function(n) if n == 0 then return param.type end end)
+        type = expr.lift(type.body, -1, function(n) if n == 0 then return ar end end)
 
         if i > elim.outer_params then
-            result = { kind = "app", left = result, right = ar }
+            result = expr.app(result, ar)
 
             if elim.recursion then
                 local rec = recursive_call(ar, param.type, elim, cases, base, env, depth)
@@ -74,39 +54,25 @@ reduce = function(val, elim, cases, base, inner_args, env, depth)
         end
     end
 
-    for _, ar in ipairs(rec_args) do
-        result = { kind = "app", left = result, right = ar }
-    end
-
-    return result, true
+    return expr.app_t(result, rec_args), true
 end
 
 local function reduce_expr(x, env)
     local args = {}
-    while x.kind == "app" do
-        table.insert(args, 1, x.right)
-        x = x.left
-    end
-
-    local elim = env.global(x.type).elim[x.elim_kind]
+    local base = expr.peel_app(x, args)
+    local elim = env.global(base.type).elim[base.elim_kind]
 
     local val = table.remove(args)
     local inner_args = {}
     for i = 1, elim.inner_params do
         table.insert(inner_args, 1, table.remove(args))
     end
-
-    local base = x
-    for _, ar in ipairs(args) do
-        base = { kind = "app", left = base, right = ar }
-    end
-
     local cases = {}
     for i = 1, elim.cases do
         table.insert(cases, 1, args[#args-i+1])
     end
 
-    return reduce(val, elim, cases, base, inner_args, env, 0)
+    return reduce(val, elim, cases, expr.app_t(base, args), inner_args, env, 0)
 end
 
 return {

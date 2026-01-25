@@ -1,38 +1,30 @@
-local eval = require("eval")
 local expr = require("expr")
-
-local function app(a, b, ...)
-    if b then
-        return app({ kind = "app", left = a, right = b }, ...)
-    else
-        return a
-    end
-end
+local var = require("var")
 
 local function parse_uint(notat, x)
-    local v = { kind = "global", name = notat.zero }
+    local v = expr.global(notat.zero)
     for i = 1, x.val do
-        v = app({ kind = "global", name = notat.succ }, v)
+        v = expr.app(expr.global(notat.succ), v)
     end
     return v
 end
 
 local function display_uint(notat, x)
     local val = 0
-    while x.kind == "app" and x.left.kind == "global" and x.left.name == notat.succ do
+    while x.kind == "app" and expr.is_global(x.left, notat.succ) do
         val = val + 1
         x = x.right
     end
 
-    if x.kind == "global" and x.name == notat.zero then
+    if expr.is_global(x, notat.zero) then
         return tostring(val)
     end
 end
 
 local function parse_array(notat, x)
-    local v = app({ kind = "global", name = notat.empty }, x.type)
+    local v = expr.app(expr.global(notat.empty), x.type)
     for i = #x.elems, 1, -1 do
-        v = app({ kind = "global", name = notat.cons }, x.type, x.elems[i], v)
+        v = expr.app(expr.global(notat.cons), x.type, x.elems[i], v)
     end
     return v
 end
@@ -42,13 +34,7 @@ local function display_array(notat, x, ...)
 
     while true do
         local args = {}
-        local l = x
-        while l.kind == "app" do
-            table.insert(args, 1, l.right)
-            l = l.left
-        end
-
-        if l.kind ~= "global" or l.name ~= notat.cons or #args ~= 3 then
+        if not expr.is_global(expr.peel_app(x, args), notat.cons) or #args ~= 3 then
             break
         end
 
@@ -56,7 +42,7 @@ local function display_array(notat, x, ...)
         x = args[3]
     end
 
-    if x.kind == "app" and x.left.kind == "global" and x.left.name == notat.empty then
+    if x.kind == "app" and expr.is_global(x.left, notat.empty) then
         return ("[%s%s %s]"):format(table.concat(elems, ", "), #elems > 0 and " :" or ":", expr.str(x.right, ...))
     end
 end
@@ -102,7 +88,7 @@ local function register(notations, desc, env)
     end
 
     for _, ar in ipairs(desc.args) do
-        local _, err = expr.env_get(env, ar) if err then return nil, err end
+        local _, err = var.env_get(env, ar) if err then return nil, err end
     end
 
     if desc.notation_name == "uint" then

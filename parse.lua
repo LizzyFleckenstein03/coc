@@ -1,5 +1,6 @@
--- stream
 local expr = require("expr")
+
+-- stream
 
 local function eat_match(x, pat, accept)
     local _, pos, match = x.buf:find("^"..pat, x.pos)
@@ -167,7 +168,7 @@ local function parse_param_list(st)
             break
         end
         for _, n in ipairs(g.names) do
-            table.insert(params, { name = n, type = g.type })
+            table.insert(params, expr.param(n, g.type))
         end
     end
 
@@ -176,19 +177,19 @@ end
 
 local function parse_noapp_expr(st)
     if stream_get(st, "%(") then
-        local expr, err = expect(st, "inner expression", parse_expr(st)) if err then return nil, err end
+        local ex, err = expect(st, "inner expression", parse_expr(st)) if err then return nil, err end
         local _, err = expect_tok(st, "%)", ")") if err then return nil, err end
-        return expr
+        return ex
     end
 
     if stream_get(st, "%[") then
         local elems = {}
         while true do
-            local expr, err = parse_expr(st) if err then return nil, err end
-            if not expr then
+            local ex, err = parse_expr(st) if err then return nil, err end
+            if not ex then
                 break
             end
-            table.insert(elems, expr)
+            table.insert(elems, ex)
             if not stream_get(st, ",") then
                 break
             end
@@ -220,12 +221,12 @@ local function parse_noapp_expr(st)
     end
 
     if not keyword[name] then
-        return { kind = "free", name = name }
+        return expr.free(name)
     elseif name == "type" then
-        return { kind = "type" }
+        return expr.type
     elseif name == "elim" or name == "rec" or name == "ind" then
         local type, err = expect(st, name.." type", parse_ident(st)) if err then return nil, err end
-        return { kind = "elim", elim_kind = name, type = type }
+        return expr.elim(name, type)
     elseif name == "fun" or name == "forall" then
         local params, err = parse_param_list(st) if err then return nil, err end
         if #params == 0 then
@@ -233,29 +234,25 @@ local function parse_noapp_expr(st)
         end
         local _, err = expect_tok(st, name == "fun" and "=>" or ",") if err then return nil, err end
         local body, err = expect(st, "function body", parse_expr(st)) if err then return nil, err end
-        return expr.fun(name, params, body)
+        return expr.fun_t(params, body, name)
     end
 end
 
 parse_expr = function(st)
-    local expr
+    local ex
     while true do
-        if expr and stream_get(st, "%->") then
+        if ex and stream_get(st, "%->") then
             local right, err = expect(st, "type", parse_expr(st)) if err then return nil, err end
-            return {
-                kind = "forall",
-                param = { name = "_", type = expr },
-                body = right
-            }
+            return expr.forall("_", ex, right)
         end
 
         local right, err = parse_noapp_expr(st) if err then return nil, err end
         if not right then
             break
         end
-        expr = expr and { kind = "app", left = expr, right = right  } or right
+        ex = ex and expr.app(ex, right) or right
     end
-    return expr
+    return ex
 end
 
 local function parse_stmt(st)
@@ -276,9 +273,9 @@ local function parse_stmt(st)
             end
         end
 
-        local expr
+        local ex
         if has_body then
-            expr, err = expect(st, "expression", parse_expr(st)) if err then return nil, err end
+            ex, err = expect(st, "expression", parse_expr(st)) if err then return nil, err end
         end
         if stream_get(st, ":") then
             type, err = expect(st, "type", parse_expr(st)) if err then return nil, err end
@@ -286,10 +283,10 @@ local function parse_stmt(st)
             return nil, stream_err(st, "expected := or :")
         end
 
-        ret = { kind = kind, name = name, expr = expr, type = type }
+        ret = { kind = kind, name = name, expr = ex, type = type }
     elseif kind == "axioms" then
-        local expr, err = expect(st, "expression", parse_expr(st)) if err then return nil, err end
-        ret = { kind = kind, expr = expr }
+        local ex, err = expect(st, "expression", parse_expr(st)) if err then return nil, err end
+        ret = { kind = kind, expr = ex }
     elseif kind == "inductive" then
         local name, err = expect(st, "identifier", parse_ident(st)) if err then return nil, err end
         local outer, err = parse_param_list(st) if err then return nil, err end

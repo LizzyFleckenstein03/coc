@@ -23,6 +23,7 @@ local parse = require("parse")
 local eval = require("eval")
 local induct = require("induct")
 local notation = require("notation")
+local var = require("var")
 
 local function error_str(err, env, params)
     params = params or function() end
@@ -33,7 +34,7 @@ local function error_str(err, env, params)
             if (err.expr.kind == "fun" or err.expr.kind == "forall") and
                 (inner.location == "body" or inner.location == "body type") then
                 local _
-                _, new_params = expr.choose_param_name(err.expr.param, env, params)
+                _, new_params = var.choose_param_name(err.expr.param, env, params)
             end
 
             loc = " in " .. inner.location
@@ -131,7 +132,7 @@ local function run_command(state, com, quiet)
                 expr.str(type, state.env)))
         elseif com.kind == "def" then
             local def = { name = com.name, type = type, val = val }
-            local _, err = expr.env_add(state.env, def.name, def) if err then return report_error(err) end
+            local _, err = var.env_add(state.env, def.name, def) if err then return report_error(err) end
             define(state, def, quiet)
         elseif com.kind == "check" then
             print(("%s : %s"):format(

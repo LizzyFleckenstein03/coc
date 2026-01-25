@@ -1,17 +1,11 @@
 local expr = require("expr")
 local iota = require("iota")
+local expect = require("util").expect
 
 local function type_match(type, x)
     if not expr.eq(type, x.type) then
         return nil, { err = "type_mismatch", type = type, expr = x }
     end
-end
-
-local function expect(loc, val, err)
-    if err then
-        return nil, { err = "location", location = loc, inner = err }
-    end
-    return val
 end
 
 local reduce

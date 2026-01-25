@@ -1,31 +1,121 @@
-local function params_add(params, name, p_type)
-    return function(x)
-        if type(x) == "number" then
-            if x == 0 then
-                return name, p_type
-            else
-                return params(x-1)
-            end
-        else
-            if x == name then
-                return 0, p_type
-            else
-                local idx, ty = params(x)
-                if idx then
-                    return idx+1, ty
-                end
-            end
-        end
+local var = require("var")
+
+-- constructors
+
+local function free(name)
+	return { kind = "free", name = name }
+end
+
+local function bound(index, type)
+	return { kind = "bound", index = index, type = type }
+end
+
+local function global(name)
+	return { kind = "global", name = name }
+end
+
+local function elim(kind, type)
+	return { kind = "elim", elim_kind = kind, type = type,  }
+end
+
+local function app(a, b, ...)
+    if b then
+        return app({ kind = "app", left = a, right = b }, ...)
+    else
+        return a
     end
 end
 
-local function env_get(env, name)
-    local x = env.global(name)
-    if not x then
-        return nil, { err = "var_not_found", var = name }
+local function app_t(x, args)
+	for _, a in ipairs(args) do
+		x = { kind = "app", left = x, right = a }
+	end
+	return x
+end
+
+local function app_range(x, start, n)
+    for i = start+n-1, start, -1 do
+        x = { kind = "app", left = x, right = bound(i) }
     end
     return x
 end
+
+local function param(name, type)
+	return { name = name, type = type }
+end
+
+local function fun(param_name, param_type, body, kind)
+    return {
+        kind = kind or "fun",
+        param = { name = param_name, type = param_type },
+        body = body,
+    }
+end
+
+local function forall(param_name, param_type, body)
+    return fun(param_name, param_type, body, "forall")
+end
+
+local function fun_t(params, body, kind)
+    local x = body
+    for i = #params, 1, -1 do
+        x = {
+            kind = kind or "fun",
+            param = params[i],
+            body = x
+        }
+    end
+    return x
+end
+
+local function forall_t(params, body)
+	return fun_t(params, body, "forall")
+end
+
+-- destructors
+
+local function is_bound(x, index)
+	return x.kind == "bound" and x.index == index
+end
+
+local function is_global(x, name)
+	return x.kind == "global" and x.name == name
+end
+
+local function peel_app(x, args)
+	while x.kind == "app" do
+        table.insert(args, 1, x.right)
+        x = x.left
+	end
+	return x
+end
+
+local function peel_fun(x, params, kind)
+	while x.kind == (kind or "fun") do
+		if params then table.insert(params, x.param) end
+		x = x.body
+	end
+	return x
+end
+
+local function peel_forall(x, params)
+	return peel_fun(x, params, "forall")
+end
+
+local function peel_fun_n(x, n, params, kind)
+	for i = 1, n do
+		assert(x.kind == (kind or "fun"))
+		if params then table.insert(params, x.param) end
+		x = x.body
+	end
+	return x
+end
+
+local function peel_forall_n(x, n, params)
+	return peel_fun_n(x, n, params, "forall")
+end
+
+-- logic
 
 local function used(x, var)
     local global = type(var) == "string"
@@ -57,19 +147,16 @@ local function lift(x, by, subst, depth)
                 return lift(assert(subst(x.index - depth)), depth)
             end
         end
-        return { kind = "bound", index = index, type = x.type and lift(x.type, by, subst, depth) }
+        return bound(index, x.type and lift(x.type, by, subst, depth))
     elseif x.kind == "global" then
         return x
     elseif x.kind == "elim" then
         return x
     elseif x.kind == "app" then
-        return { kind = "app", left = lift(x.left, by, subst, depth), right = lift(x.right, by, subst, depth) }
+        return app(lift(x.left, by, subst, depth), lift(x.right, by, subst, depth))
     elseif x.kind == "fun" or x.kind == "forall" then
-        return {
-            kind = x.kind,
-            param = { name = x.param.name, type = lift(x.param.type, by, subst, depth) },
-            body = lift(x.body, by, subst, depth + 1)
-        }
+        return fun(x.param.name, lift(x.param.type, by, subst, depth),
+            lift(x.body, by, subst, depth + 1), x.kind)
     elseif x.kind == "type" then
         return x
     else
@@ -82,20 +169,20 @@ local function bind(x, env, params)
     if x.kind == "free" then
         local index, type = params(x.name)
         if index then
-            return { kind = "bound", index = index, type = lift(type, index+1) }
+            return bound(index, lift(type, index+1))
         end
-        local _, err = env_get(env, x.name) if err then return nil, err end
-        return { kind = "global", name = x.name }
+        local _, err = var.env_get(env, x.name) if err then return nil, err end
+        return global(x.name)
     elseif x.kind == "bound" then
         if not x.type then
             local _, type = params(x.index)
-            return { kind = "bound", index = x.index, type = lift(type, x.index+1) }
+            return bound(x.index, lift(type, x.index+1))
         end
         return x
     elseif x.kind == "global" then
         return x
     elseif x.kind == "elim" then
-        local type, err = env_get(env, x.type) if err then return nil, err end
+        local type, err = var.env_get(env, x.type) if err then return nil, err end
         if not type.elim then
             return nil, { err = "not_inductive", type = x.type }
         end
@@ -103,16 +190,11 @@ local function bind(x, env, params)
     elseif x.kind == "app" then
         local left, err = bind(x.left, env, params) if err then return nil, err end
         local right, err = bind(x.right, env, params) if err then return nil, err end
-        return { kind = "app", left = left, right = right }
+        return app(left, right)
     elseif x.kind == "fun" or x.kind == "forall" then
         local param_type, err = bind(x.param.type, env, params) if err then return nil, err end
-        local body, err = bind(x.body, env, params_add(params, x.param.name, param_type)) if err then return nil, err end
-
-        return {
-            kind = x.kind,
-            param = { name = x.param.name, type = param_type },
-            body = body,
-        }
+        local body, err = bind(x.body, env, var.params_add(params, x.param.name, param_type)) if err then return nil, err end
+        return fun(x.param.name, param_type, body, x.kind)
     elseif x.kind == "type" then
         return x
     elseif x.kind == "custom" then
@@ -121,44 +203,6 @@ local function bind(x, env, params)
     else
         error(x.kind)
     end
-end
-
-local function suggest_name(type, params)
-    if type.kind == "bound" then
-        return params(type.index):sub(1,1):lower()
-    elseif type.kind == "global" then
-        return type.name:sub(1,1):lower()
-    elseif type.kind == "elim" then
-        return "e"
-    elseif type.kind == "app" then
-        return suggest_name(type.left, params)
-    elseif type.kind == "forall" or type.kind == "fun" then
-        return "f"
-    elseif type.kind == "type" then
-        return "t"
-    else
-        error(type.kind)
-    end
-end
-
-local function choose_param_name(param, env, params)
-    local hint = param.name
-    if hint == "_" then
-        hint = suggest_name(param.type, params)
-    end
-
-    if not (env.global(hint) or params(hint)) then
-        return hint, params_add(params, hint, param.type)
-    end
-
-    local name
-    local postfix = 1
-    repeat
-        name = ("%s_%d"):format(hint, postfix)
-        postfix = postfix + 1
-    until not (env.global(name) or params(name))
-
-    return name, params_add(params, name, param.type)
 end
 
 -- diff: how much deeper is b compared to a
@@ -247,7 +291,7 @@ local function expr_str(x, env, params, indices)
             local param_name
             type = right.param.type
             type_str = expr_str(type, env, params, indices)
-            param_name, params = choose_param_name(right.param, env, params)
+            param_name, params = var.choose_param_name(right.param, env, params)
 
             table.insert(names, anon and type_str or param_name)
 
@@ -296,34 +340,33 @@ local function axioms(x, t, env)
     end
 end
 
-local function fun(kind, params, body)
-    local x = body
-    for i = #params, 1, -1 do
-        x = {
-            kind = kind,
-            param = params[i],
-            body = x
-        }
-    end
-    return x
-end
-
-local function env_add(env, name, def)
-    if env.global(name) then
-        return nil, { err = "already_exists", name = name }
-    end
-    return { display = env.display, parse = env.parse, global = function(x) return x == name and def or env.global(x) end }
-end
-
 return {
+    free = free,
+    bound = bound,
+    global = global,
+    elim = elim,
+    app = app,
+    app_t = app_t,
+    app_range = app_range,
+    param = param,
+    fun = fun,
+    forall = forall,
+    fun_t = fun_t,
+    forall_t = forall_t,
+    type = { kind = "type" },
+
+    is_bound = is_bound,
+    is_global = is_global,
+    peel_app = peel_app,
+    peel_fun = peel_fun,
+    peel_forall = peel_forall,
+    peel_fun_n = peel_fun_n,
+    peel_forall_n = peel_forall_n,
+
     used = used,
     lift = lift,
     bind = bind,
-    choose_param_name = choose_param_name,
     eq = expr_eq,
     str = expr_str,
     axioms = axioms,
-    fun = fun,
-    env_add = env_add,
-    env_get = env_get,
 }
