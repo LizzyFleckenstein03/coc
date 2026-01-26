@@ -29,10 +29,12 @@ local function reduce_wh(x, env)
         elim_depth = elim_depth and (elim_depth-1)
 
         if elim_depth == 0 then
-            local right = reduce(x.right, env, true)
-            local joint = app(left, right)
+            local joint = app(left, reduce(x.right, env, true))
             local elim, reduced = iota.reduce(joint, env)
-            return reduced and reduce_wh(elim, env) or joint
+            if reduced then
+                return reduce_wh(elim, env)
+            end
+            return joint
         end
 
         return app(left, x.right), elim_depth
