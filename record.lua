@@ -14,14 +14,6 @@ local function check_duplicate(fields)
     end
 end
 
-local function used_range(x, start, n)
-    for i = start, start+n-1 do
-        if expr.used(x, i) then
-            return true
-        end
-    end
-    return false
-end
 
 local function define_inductive(desc, env)
     local ind, err = induct.define_type({
@@ -52,30 +44,17 @@ local function define_dtor(desc, name, inner_type, idx, record, record_params, f
     end
 
     local record_type = expr.app_range(expr.global(record), 0, #desc.params)
-
-    local elim_kind, elim_ret, type_ret
-    if used_range(inner_type, 0, idx) then
-        local lifted = expr.lift(expr.lift(inner_type, 1, nil, idx), -idx, function(n)
-            return expr.app_range(expr.global(field_params[idx-n].name), 0, #desc.params+1)
-        end)
-        elim_kind = "ind"
-        elim_ret = expr.fun("_", record_type, lifted)
-        type_ret = lifted
-    else
-        local lifted = expr.lift(inner_type, -idx)
-
-        elim_kind = "elim"
-        elim_ret = lifted
-        type_ret = expr.lift(lifted, 1)
-    end
+    local field_type = expr.lift(expr.lift(inner_type, 1, nil, idx), -idx, function(n)
+        return expr.app_range(expr.global(field_params[idx-n].name), 0, #desc.params+1)
+    end)
 
     local val = expr.fun_t(record_params, expr.app(
-        expr.app_range(expr.elim(elim_kind, record), 0, #desc.params),
-        elim_ret,
+        expr.app_range(expr.elim("ind", record), 0, #desc.params),
+        expr.fun("_", record_type, field_type),
         expr.fun_t(field_params, expr.bound(#desc.fields-idx-1))
     ))
 
-    local type = expr.forall_t(record_params, expr.forall("_", record_type, type_ret))
+    local type = expr.forall_t(record_params, expr.forall("_", record_type, field_type))
     local type, err = eval.typeck(val, env, type) if err then return nil, err end
     local dtor = {
         name = name,
