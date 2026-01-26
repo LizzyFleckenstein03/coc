@@ -1,4 +1,4 @@
-local expr = require("expr")
+local expr = require("muprov.expr")
 
 local reduce
 

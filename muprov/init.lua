@@ -1,5 +1,3 @@
-#!/usr/bin/env lua
-
 -- for debugging purposes
 function dump(x, idt)
     local p = {}
@@ -18,13 +16,13 @@ function dump(x, idt)
     return ("{\n%s\n%s}"):format(table.concat(p, ", \n"), (" "):rep(4*idt))
 end
 
-local expr = require("expr")
-local parse = require("parse")
-local eval = require("eval")
-local induct = require("induct")
-local record = require("record")
-local notation = require("notation")
-local var = require("var")
+local expr = require("muprov.expr")
+local parse = require("muprov.parse")
+local eval = require("muprov.eval")
+local induct = require("muprov.induct")
+local record = require("muprov.record")
+local notation = require("muprov.notation")
+local var = require("muprov.var")
 
 local function error_str(err, env, params)
     params = params or function() end
@@ -267,47 +265,14 @@ local function run_repl(state)
 
 end
 
-local help_text = [[
-usage: %s [-i] [-v] [-h] [<file>]
-    -v: verbose mode, report all definitions from files
-    -i: interactive mode, start REPL after executing <file>
-    -h: show help
-    <file>: coc file to run. if no file is given, a REPL is started.
-]]
-
-local function main()
-    local state = new_state()
-    local repl, file
-
-    local idx = 1
-    while arg[idx] and arg[idx]:sub(1,1) == "-" do
-        local ar = arg[idx]
-        idx = idx + 1
-
-        if ar == "-i" then
-            repl = true
-        elseif ar == "-v" then
-            state.verbose = true
-        elseif ar == "--" then
-            break
-        else
-            io.write(help_text:format(arg[0]))
-            return ar == "-h"
-        end
-    end
-
-    file = arg[idx]
-    repl = repl or not file
-
-    if file and not run_file(state, file) then
-        return false
-    end
-    if repl and not run_repl(state) then
-        return false
-    end
-    return true
-end
-
-if not main() then
-    os.exit(1)
-end
+return {
+    error_str = error_str,
+    report_err = report_err,
+    new_state = new_state,
+    define = define,
+    run_command = run_command,
+    parse_and_run_command = parse_and_run_command,
+    run_stream = run_stream,
+    run_file = run_file,
+    run_repl = run_repl, 
+}

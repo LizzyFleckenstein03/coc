@@ -1,5 +1,5 @@
-local expr = require("expr")
-local var = require("var")
+local expr = require("muprov.expr")
+local var = require("muprov.var")
 
 local function parse_uint(notat, x)
     local v = expr.global(notat.zero)

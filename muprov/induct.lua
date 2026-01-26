@@ -1,7 +1,7 @@
-local expr = require("expr")
-local eval = require("eval")
-local util = require("util")
-local var = require("var")
+local expr = require("muprov.expr")
+local eval = require("muprov.eval")
+local util = require("muprov.util")
+local var = require("muprov.var")
 
 local function process_type_args(args, desc, outer_args, x)
     for i = 1, #desc.params.outer do

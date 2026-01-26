@@ -1,25 +1,27 @@
+# µprover
+
 Toy implementation of the [calculus of (inductive) constructions](https://rocq-prover.org/doc/v8.9/refman/language/cic.html).
 
-Usage: `coc.lua [-i] [-v] [-h] [<file>]`
+Usage: `mu [-i] [-v] [-h] [<file>]`
 
 | option | meaning |
 |-|-|
 | `-v` | verbose mode, report all definitions from files |
 | `-i` | interactive mode, start REPL after executing `<file>` |
 | `-h` | show help |
-| `<file>` | coc file to run. if no file is given, a REPL is started. |
+| `<file>` | muprov file to run. if no file is given, a REPL is started. |
 
 The REPL can optionally make use of the `readline` package if it is installed.
 
 LuaJIT is supported.
 
-[base.coc](base.coc) contains some basic data types and functions.
+[base.mu](base.mu) contains some basic data types and functions.
 
 The [theorems](theorems) directory contains proofs for some example theorems.
 
 The [bugs](bugs) directory contains test files for various bugs that have either been fixed or will be fixed in the future.
 
-Type universes are TODO. This means that right now the logic is inconsistent, since type-in-type allows for paradoxes. See [bugs/hurkens.coc](bugs/hurkens.coc) for an implementation of Hurken's paradox.
+Type universes are TODO. This means that right now the logic is inconsistent, since type-in-type allows for paradoxes. See [bugs/hurkens.mu](bugs/hurkens.mu) for an implementation of Hurken's paradox.
 
 Some helpful papers used:
 - https://pauillac.inria.fr/~herbelin/publis/univalgcci.pdf

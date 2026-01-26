@@ -1,4 +1,4 @@
-local constr = require("constr")
+local constr = require("muprov.constr")
 
 -- basic
 do

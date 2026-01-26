@@ -1,4 +1,4 @@
-include base.coc;
+include base.mu;
 
 def oneplusone := (eq_refl nat 2)
     : eq nat (add 1 1) 2;

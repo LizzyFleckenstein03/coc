@@ -1,8 +1,8 @@
-local expr = require("expr")
-local induct = require("induct")
-local eval = require("eval")
-local util = require("util")
-local var = require("var")
+local expr = require("muprov.expr")
+local induct = require("muprov.induct")
+local eval = require("muprov.eval")
+local util = require("muprov.util")
+local var = require("muprov.var")
 
 local function check_duplicate(fields)
     local field_names = {}

@@ -1,4 +1,4 @@
-include base.coc;
+include base.mu;
 
 record dfa (A : type) | mkdfa
     (nstates : nat)

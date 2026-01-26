@@ -1,4 +1,4 @@
-local var = require("var")
+local var = require("muprov.var")
 
 -- constructors
 

@@ -1,4 +1,4 @@
-include base.coc;
+include base.mu;
 
 def app_assoc := fun (T : type) (a b c : list T) =>
         ind list T (fun (a : list T) => eq (list T) (app T a (app T b c)) (app T (app T a b) c))

@@ -1,6 +1,6 @@
-local expr = require("expr")
-local iota = require("iota")
-local expect = require("util").expect
+local expr = require("muprov.expr")
+local iota = require("muprov.iota")
+local expect = require("muprov.util").expect
 local app, fun, forall = expr.app, expr.fun, expr.forall
 
 local reduce

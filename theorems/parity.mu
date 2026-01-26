@@ -1,4 +1,4 @@
-include base.coc;
+include base.mu;
 
 def even_odd_S :=
         ind even (fun (n : nat) (_ : even n) => odd (S n))
