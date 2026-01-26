@@ -3,11 +3,18 @@ include base.coc;
 def oneplusone := (eq_refl nat 2)
     : eq nat (add 1 1) 2;
 
+def eq_S := eq_ext nat nat S
+    : forall (n m : nat), eq nat n m -> eq nat (S n) (S m);
+
+def neq_0_S := fun (n : nat) => ind eq nat 0
+        (fun (n : nat) (_ : eq nat 0 n) => elim nat type true (fun _ : nat => false) n) mktrue (S n)
+    : forall (n : nat), neq nat 0 (S n);
+
 def add_assoc := fun (a b c : nat) =>
         ind nat (fun (a : nat) => eq nat (add a (add b c)) (add (add a b) c))
             (eq_refl nat (add b c))
             (fun (a : nat) =>
-                eq_ext nat nat S (add a (add b c)) (add (add a b) c))
+                eq_S (add a (add b c)) (add (add a b) c))
             a
     : forall (a b c : nat), eq nat (add a (add b c)) (add (add a b) c);
 
@@ -15,7 +22,7 @@ def add_0_r := fun n : nat =>
         ind nat (fun (n : nat) => eq nat n (add n 0))
             (eq_refl nat 0)
             (fun (n : nat) =>
-                eq_ext nat nat S n (add n 0))
+                eq_S n (add n 0))
             n
     : forall (n : nat), eq nat n (add n 0);
 
@@ -23,7 +30,7 @@ def add_S_r := fun a b : nat =>
         ind nat (fun (a : nat) => eq nat (S (add a b)) (add a (S b)))
             (eq_refl nat (S b))
             (fun (a : nat) =>
-                eq_ext nat nat S (S (add a b)) (add a (S b)))
+                eq_S (S (add a b)) (add a (S b)))
             a
     : forall (a b : nat), eq nat (S (add a b)) (add a (S b));
 
@@ -33,11 +40,7 @@ def add_comm := fun a b : nat =>
             (fun (a : nat) (IH : eq nat (add a b) (add b a)) =>
                 eq_trans nat
                     (S (add a b)) (S (add b a)) (add b (S a))
-                    (eq_ext nat nat S (add a b) (add b a) IH)
+                    (eq_S (add a b) (add b a) IH)
                     (add_S_r b a))
             a
     : forall (a b : nat), eq nat (add a b) (add b a);
-
-def neq_0_S := fun (n : nat) => ind eq nat 0
-        (fun (n : nat) (_ : eq nat 0 n) => elim nat type true (fun _ : nat => false) n) mktrue (S n)
-    : forall (n : nat), neq nat 0 (S n);
