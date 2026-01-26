@@ -1,0 +1,2 @@
+*.mu linguist-language=muprover
+/mu linguist-language=lua
