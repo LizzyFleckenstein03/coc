@@ -52,14 +52,13 @@ def or_not_both := fun A B : type => ind or A B
         (fun (_ : A) (_ : true) (f : false) => f) (fun (_ : B) (f : false) (_ : true) => f)
     : forall (A B : type) (o : or A B), or_is_left A B o -> not (or_is_right A B o);
 
-inductive and (A B : type) |
-    (mkand : A -> B -> and A B);
+record and (A B : type) | mkand
+    (fst : A)
+    (snd : B);
 
-def fst := fun (A B : type) => elim and A B A (fun (a : A) (b : B) => a);
-def snd := fun (A B : type) => elim and A B B (fun (a : A) (b : B) => b);
-
-inductive ex (A : type) (B : A -> type) |
-    (mkex : forall a : A, B a -> ex A B);
+record ex (T : type) (P : T -> type) | mkex
+    (ex_var : T)
+    (ex_prop : P ex_var);
 
 inductive nat |
     (Z : nat)
@@ -68,13 +67,19 @@ inductive nat |
 notation display uint Z S;
 notation parse uint Z S;
 
+def is_zero := elim nat bool btrue (fun n : nat => bfalse);
+def pred := elim nat (option nat) (none nat) (some nat);
+
 def add := fun (a b : nat) => rec nat nat b (fun (n : nat) (r : nat) => S r) a;
+def sub := fun (a b : nat) => rec nat (option nat) (some nat a) (fun n : nat => flat_map nat nat pred) b;
+
+def nat_eqb := fun (a b : nat) => elim option nat bool bfalse is_zero (sub a b);
 
 inductive le (n : nat) > (m : nat) |
     (le_n : le n n)
     (le_S : forall m : nat, le n m -> le n (S m));
 
-def lt := fun n m : nat => le n (S m);
+def lt := fun n m : nat => le (S n) m;
 
 inductive even > (n : nat) |
     (even_0 : even 0)
@@ -84,8 +89,9 @@ inductive odd > (n : nat) |
     (odd_1 : odd 1)
     (odd_S : forall (n : nat), odd n -> odd (S (S n)));
 
-inductive fin (n : nat) |
-    (mkfin : forall m : nat, lt m n -> fin n);
+record fin (n : nat) | mkfin
+    (fin_n : nat)
+    (fin_lt : lt fin_n n);
 
 inductive list (T : type) |
     (nil : list T)

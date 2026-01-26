@@ -111,6 +111,7 @@ local keyword = {
     ["check"] = true,
     ["axioms"] = true,
     ["inductive"] = true,
+    ["record"] = true,
     ["notation"] = true,
     ["include"] = true,
     ["exit"] = true,
@@ -300,6 +301,13 @@ local function parse_stmt(st)
         local ctors, err = parse_param_list(st) if err then return nil, err end
 
         ret = { kind = "inductive", name = name, params = { outer = outer, inner = inner }, ctors = ctors }
+    elseif kind == "record" then
+        local name, err = expect(st, "identifier", parse_ident(st)) if err then return nil, err end
+        local params, err = parse_param_list(st) if err then return nil, err end
+        local _, err = expect_tok(st, "|") if err then return nil, err end
+        local ctor, err = expect(st, "constructor", parse_ident(st)) if err then return nil, err end
+        local fields, err = parse_param_list(st) if err then return nil, err end
+        ret = { kind = "record", name = name, ctor = ctor, params = params, fields = fields }
     elseif kind == "notation" then
         local notation_kind, err = expect(st, "notation kind", parse_ident(st)) if err then return nil, err end
         local notation_name, err = expect(st, "notation name", parse_ident(st)) if err then return nil, err end

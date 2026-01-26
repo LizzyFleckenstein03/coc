@@ -22,6 +22,7 @@ local expr = require("expr")
 local parse = require("parse")
 local eval = require("eval")
 local induct = require("induct")
+local record = require("record")
 local notation = require("notation")
 local var = require("var")
 
@@ -71,6 +72,8 @@ local function error_str(err, env, params)
         return ("constructor return type mismatch")
     elseif err.err == "outer_param_mismatch" then
         return ("outer parameter mismatch")
+    elseif err.err == "recursive_record" then
+        return ("recursive record type")
     elseif err.err == "already_exists" then
         return ("already exists: %s"):format(err.name)
     elseif err.err == "notation_error" then
@@ -163,6 +166,16 @@ local function run_command(state, com, quiet)
         define(state, def.type, quiet)
         for _, ctor in ipairs(def.ctors) do
             define(state, ctor, quiet)
+        end
+
+        return true
+    elseif com.kind == "record" then
+        local def, err = record.define_type(com, state.env) if err then return report_error(err) end
+
+        define(state, def.type, quiet)
+        define(state, def.ctor, quiet)
+        for _, dtor in ipairs(def.dtors) do
+            define(state, dtor, quiet)
         end
 
         return true
