@@ -224,7 +224,8 @@ local function expr_eq(a, b, diff, depth)
     elseif a.kind == "app" then
         return expr_eq(a.left, b.left, diff, depth) and expr_eq(a.right, b.right, diff, depth)
     elseif a.kind == "fun" or a.kind == "forall" then
-        return expr_eq(a.param.type, b.param.type, diff, depth) and expr_eq(a.body, b.body, diff, depth+1)
+        return (a.kind == "fun" or expr_eq(a.param.type, b.param.type, diff, depth))
+            and expr_eq(a.body, b.body, diff, depth+1)
     elseif a.kind == "type" then
         return true
     else
